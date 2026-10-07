@@ -1,5 +1,5 @@
 import React from 'react';
-import { COMPONENT_REGISTRY } from '../../core/registry';
+import { COMPONENT_REGISTRY } from '@core/registry';
 
 interface ComponentDockProps {
   onAddComponent: (type: string) => void;

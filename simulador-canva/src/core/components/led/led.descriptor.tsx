@@ -1,4 +1,4 @@
-import type { ComponentDescriptor } from '../../types/componentDescriptor';
+import type { ComponentDescriptor } from '@types';
 import { LedView } from './LedView';
 import type { LedState } from './LedView';
 
@@ -18,13 +18,13 @@ export const LedDescriptor: ComponentDescriptor<LedState> = {
     { id: `${instanceId}-cathode`, name: 'K', relativePos: { x: 30, y: 35 } },
   ],
 
-  // Simplemente referencia la vista del componente
   View: LedView,
 
-  // Lógica física/eléctrica para el Web Worker (Límite 20mA)
-  stepSimulation: ({ inputs, state }) => {
-    const vAnode = inputs['anode'] || 0;
-    const vCathode = inputs['cathode'] || 0;
+  // Lógica física/eléctrica tolerante y desacoplada
+  stepSimulation: ({ componentId, pinVoltages, inputs = pinVoltages || {}, state }) => {
+    // Resolver el voltaje usando el ID real del pin o fallback corto
+    const vAnode = inputs[`${componentId}-anode`] ?? inputs['anode'] ?? 0;
+    const vCathode = inputs[`${componentId}-cathode`] ?? inputs['cathode'] ?? 0;
     const vDiff = vAnode - vCathode;
 
     if (vDiff > 3.3) {
@@ -35,7 +35,7 @@ export const LedDescriptor: ComponentDescriptor<LedState> = {
     }
 
     return {
-      nextState: { ...state, isLit: vDiff >= 1.8 && !state.isExploded },
+      nextState: { ...state, isLit: vDiff >= 1.8 && !state?.isExploded },
       outputs: {},
     };
   },

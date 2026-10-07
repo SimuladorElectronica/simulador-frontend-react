@@ -1,10 +1,12 @@
-import type { ComponentDescriptor } from '../../types/componentDescriptor';
-import type { Pin } from '../../../types/simulator';
+import type { ComponentDescriptor } from '@types';
+import type { Pin } from '@types';
 import { Esp32View } from './Esp32View';
 
 export interface Esp32State {
   isPowered: boolean;
   isBroadcastingWifi?: boolean;
+  gpioModes?: Record<number, 'INPUT' | 'OUTPUT'>;
+  gpioValues?: Record<number, number>;
 }
 
 export const Esp32Descriptor: ComponentDescriptor<Esp32State> = {
@@ -52,8 +54,28 @@ export const Esp32Descriptor: ComponentDescriptor<Esp32State> = {
 
   View: Esp32View,
 
-  stepSimulation: ({ state }) => ({
-    nextState: state,
-    outputs: {},
-  }),
-};
+  stepSimulation: ({ componentId, state, deltaMs }) => {
+    // 1. Pines de alimentación fijos de la placa
+    const drivenVoltages: Record<string, number> = {
+      [`${componentId}_gnd`]: 0.0,
+      [`${componentId}_gnd2`]: 0.0,
+      [`${componentId}_3v3`]: 3.3,
+      [`${componentId}_vin`]: 5.0,
+    };
+
+    // 2. Pines de salida programables (GPIOs)
+    // Si el pin GPIO 2 está configurado como OUTPUT y su valor digital es HIGH (1), entrega 3.3V
+    Object.entries(state.gpioModes || {}).forEach(([pinNumber, mode]) => {
+      if (mode === 'OUTPUT') {
+        const isHigh: boolean = state.gpioValues?.[Number(pinNumber)] === 1;
+        const pinId = `${componentId}_gpio${pinNumber}`;
+        drivenVoltages[pinId] = isHigh ? 3.3 : 0.0;
+      }
+    });
+
+    return {
+      nextState: state,
+      drivenVoltages, // Le pasa al motor de física las tensiones activas de esta placa
+    };
+  }
+}

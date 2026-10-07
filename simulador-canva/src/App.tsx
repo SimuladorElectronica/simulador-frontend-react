@@ -1,4 +1,4 @@
-import { SimulatorCanvas } from './components/simulator/SimulatorCanvas'
+import { SimulatorCanvas } from './UIcomponents/SimulatorCanvas'
 
 function App() {
   return (

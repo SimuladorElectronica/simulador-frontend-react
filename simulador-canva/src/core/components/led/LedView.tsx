@@ -1,6 +1,6 @@
 import React from 'react';
 import { Group, Circle, Text, Line } from 'react-konva';
-import type { ComponentViewProps } from '../../../components/simulator/types';
+import type { ComponentViewProps } from '@types';
 
 export interface LedState {
   isLit: boolean;
@@ -14,11 +14,14 @@ export const LedView: React.FC<ComponentViewProps<LedState>> = ({
   onDragMove,
 }) => {
   const { position, pins, state } = instance;
-  const color = state.isLit ? state.color : '#555555';
+
+  const isLit = Boolean(state?.isLit);
+  const isExploded = Boolean(state?.isExploded);
+  const color = isLit ? (state?.color || '#e74c3c') : '#555555';
 
   return (
     <Group x={position.x} y={position.y} draggable onDragMove={onDragMove}>
-      {state.isExploded ? (
+      {isExploded ? (
         <Group>
           <Circle radius={15} fill="#222" />
           <Line points={[-10, -10, 10, 10]} stroke="#ff0000" strokeWidth={3} />
@@ -30,8 +33,8 @@ export const LedView: React.FC<ComponentViewProps<LedState>> = ({
           fill={color}
           stroke="#333"
           strokeWidth={2}
-          shadowColor={state.isLit ? color : undefined}
-          shadowBlur={state.isLit ? 15 : 0}
+          shadowColor={isLit ? color : undefined}
+          shadowBlur={isLit ? 15 : 0}
         />
       )}
 

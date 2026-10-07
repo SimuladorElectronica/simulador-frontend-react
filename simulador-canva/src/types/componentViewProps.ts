@@ -1,5 +1,5 @@
 import Konva from 'konva';
-import type { ComponentInstance } from '../../types/simulator';
+import type { ComponentInstance } from './basicElements';
 
 export interface ComponentViewProps<TState = any> {
   instance: ComponentInstance<TState>;

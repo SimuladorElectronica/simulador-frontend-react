@@ -1,4 +1,4 @@
-import type { ComponentDescriptor } from './types/componentDescriptor';
+import type { ComponentDescriptor } from '@types';
 import { Esp32Descriptor, ProtoboardDescriptor, LedDescriptor, GenericDescriptor} from './components';
 
 export const COMPONENT_REGISTRY: Record<string, ComponentDescriptor<any>> = {

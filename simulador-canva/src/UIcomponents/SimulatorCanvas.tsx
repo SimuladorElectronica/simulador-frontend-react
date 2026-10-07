@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Line, Rect, Group } from 'react-konva';
 import Konva from 'konva';
-import type { ComponentInstance, Wire, Vector2D } from '../../types/simulator';
-import { createComponentInstance } from '../../core/registry';
+import type { ComponentInstance, Wire, Vector2D } from '@types';
+import { createComponentInstance } from '@core/registry';
 import { ComponentRenderer } from './ComponentRenderer';
 import { ComponentDock } from './ComponentDock';
 
@@ -395,7 +395,7 @@ export const SimulatorCanvas: React.FC = () => {
                     stroke={wire.color}
                     strokeWidth={4}
                     lineCap="round"
-                    hitStrokeWidth={14}
+                    hitStrokeWidth={5}
                     onClick={(e) => {
                       e.cancelBubble = true;
                       setSelectedWireId(wire.id);

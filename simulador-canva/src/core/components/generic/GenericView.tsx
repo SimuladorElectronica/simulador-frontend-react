@@ -1,7 +1,7 @@
 import React from 'react';
 import { Group, Rect, Circle, Text, Image as KonvaImage } from 'react-konva';
 import useImage from 'use-image';
-import type { ComponentViewProps } from '../../types/componentViewProps';
+import type { ComponentViewProps } from '@types';
 
 export interface GenericComponentState {
   spriteUrl?: string; // URL opcional de una imagen PNG o SVG

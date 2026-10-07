@@ -1,11 +1,7 @@
 import React from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
-import type { ComponentViewProps } from '../../types/componentViewProps';
-
-interface Esp32State {
-  isPowered?: boolean;
-  isBroadcastingWifi?: boolean;
-}
+import type { ComponentViewProps } from '@types';
+import type { Esp32State } from './esp32.descriptor';
 
 export const Esp32View: React.FC<ComponentViewProps<Esp32State>> = ({
   instance,
@@ -15,6 +11,8 @@ export const Esp32View: React.FC<ComponentViewProps<Esp32State>> = ({
   const { position, pins, state } = instance;
   const width = 140;
   const height = 260;
+
+  const isPowered = Boolean(state?.isPowered);
 
   return (
     <Group x={position.x} y={position.y} draggable onDragMove={onDragMove}>
@@ -52,9 +50,9 @@ export const Esp32View: React.FC<ComponentViewProps<Esp32State>> = ({
         x={30}
         y={110}
         radius={4}
-        fill={state.isPowered ? '#2ecc71' : '#7f8c8d'}
+        fill={isPowered ? '#2ecc71' : '#7f8c8d'}
         shadowColor="#2ecc71"
-        shadowBlur={state.isPowered ? 8 : 0}
+        shadowBlur={isPowered ? 8 : 0}
       />
       <Text text="PWR" x={38} y={106} fontSize={8} fill="#ecf0f1" />
 

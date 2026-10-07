@@ -14,7 +14,8 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-konva": "^19.3.0",
-    "use-image": "^1.1.4"
+    "use-image": "^1.1.4",
+    "vitest": "^5.0.3"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",

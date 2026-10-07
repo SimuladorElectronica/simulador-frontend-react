@@ -1,6 +1,6 @@
 import React from 'react';
-import { COMPONENT_REGISTRY } from '../../core/registry';
-import type { ComponentViewProps } from '../../core/types/componentViewProps';
+import { COMPONENT_REGISTRY } from '@core/registry';
+import type { ComponentViewProps } from '@types';
 
 export const ComponentRenderer: React.FC<ComponentViewProps> = (props) => {
   // Busca el descriptor en el registro o usa el genérico si no existe

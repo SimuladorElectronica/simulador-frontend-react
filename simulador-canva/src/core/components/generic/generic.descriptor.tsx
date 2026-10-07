@@ -1,4 +1,4 @@
-import type { ComponentDescriptor } from '../../types/componentDescriptor';
+import type { ComponentDescriptor } from '@types';
 import { GenericView } from './GenericView';
 import type { GenericComponentState } from './GenericView';
 

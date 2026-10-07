@@ -20,7 +20,14 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Path mapping */
+    "paths": {
+      "@/*": ["./src/*"],
+      "@types": ["./src/types"],
+      "@core/*": ["./src/core/*"]
+    },
   },
   "include": ["src"]
 }
