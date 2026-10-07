@@ -1,4 +1,4 @@
-import type { CircuitNetlist, WorkerEvent } from '@types';
+import type { CircuitNetlist, WorkerEvent } from '@domain-types';
 import { COMPONENT_REGISTRY } from '../core/registry';
 
 export class PhysicsEngine {

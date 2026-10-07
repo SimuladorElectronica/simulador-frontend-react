@@ -1,5 +1,5 @@
-import type { ComponentDescriptor } from '@types';
-import type { Pin } from '@types';
+import type { ComponentDescriptor } from '@domain-types';
+import type { Pin } from '@domain-types';
 import { Esp32View } from './Esp32View';
 
 export interface Esp32State {

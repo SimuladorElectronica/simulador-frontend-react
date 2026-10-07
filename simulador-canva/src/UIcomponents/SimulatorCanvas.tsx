@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Stage, Layer, Line, Rect, Group } from 'react-konva';
 import Konva from 'konva';
-import type { ComponentInstance, Wire, Vector2D } from '@types';
+import type { ComponentInstance, Wire, Vector2D } from '@domain-types';
 import { createComponentInstance } from '@core/registry';
 import { ComponentRenderer } from './ComponentRenderer';
 import { ComponentDock } from './ComponentDock';

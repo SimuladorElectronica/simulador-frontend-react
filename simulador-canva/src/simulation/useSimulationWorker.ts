@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CircuitNetlist, WorkerEvent } from '@types';
+import type { CircuitNetlist, WorkerEvent } from '@domain-types';
 
 export const useSimulationWorker = (netlist: CircuitNetlist) => {
     const workerRef = useRef<Worker | null>(null);

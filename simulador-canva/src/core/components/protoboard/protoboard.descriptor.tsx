@@ -1,5 +1,5 @@
-import type { ComponentDescriptor } from '@types';
-import type { Pin } from '@types';
+import type { ComponentDescriptor } from '@domain-types';
+import type { Pin } from '@domain-types';
 import { ProtoboardView } from './ProtoboardView';
 
 export const ProtoboardDescriptor: ComponentDescriptor<Record<string, never>> = {

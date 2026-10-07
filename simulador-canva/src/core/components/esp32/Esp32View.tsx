@@ -1,6 +1,6 @@
 import React from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
-import type { ComponentViewProps } from '@types';
+import type { ComponentViewProps } from '@domain-types';
 import type { Esp32State } from './esp32.descriptor';
 
 export const Esp32View: React.FC<ComponentViewProps<Esp32State>> = ({

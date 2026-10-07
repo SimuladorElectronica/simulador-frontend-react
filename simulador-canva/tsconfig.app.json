@@ -25,7 +25,7 @@
     /* Path mapping */
     "paths": {
       "@/*": ["./src/*"],
-      "@types": ["./src/types"],
+      "@domain-types": ["./src/types"],
       "@core/*": ["./src/core/*"]
     },
   },

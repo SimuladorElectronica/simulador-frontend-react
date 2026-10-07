@@ -1,6 +1,6 @@
 import React from 'react';
 import { Group, Circle, Text, Line } from 'react-konva';
-import type { ComponentViewProps } from '@types';
+import type { ComponentViewProps } from '@domain-types';
 
 export interface LedState {
   isLit: boolean;

@@ -1,4 +1,4 @@
-import type { ComponentDescriptor } from '@types';
+import type { ComponentDescriptor } from '@domain-types';
 import { LedView } from './LedView';
 import type { LedState } from './LedView';
 

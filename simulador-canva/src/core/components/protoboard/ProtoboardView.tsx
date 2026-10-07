@@ -1,6 +1,6 @@
 import React from 'react';
 import { Group, Rect, Text, Line } from 'react-konva';
-import type { ComponentViewProps } from '@types';
+import type { ComponentViewProps } from '@domain-types';
 
 export const ProtoboardView: React.FC<ComponentViewProps> = ({
   instance,

@@ -1,4 +1,4 @@
-import type { UICommand, WorkerEvent, CircuitNetlist } from '@types';
+import type { UICommand, WorkerEvent, CircuitNetlist } from '@domain-types';
 import { PhysicsEngine } from './physicsEngine';
 import { ArduinoCoreMock } from './arduinoCore';
 
