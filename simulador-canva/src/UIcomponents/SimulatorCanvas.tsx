@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Line, Rect, Group } from 'react-konva';
 import Konva from 'konva';
 import type { ComponentInstance, Wire, Vector2D } from '@domain-types';
@@ -53,28 +53,31 @@ export const SimulatorCanvas: React.FC = () => {
   }, []);
 
   // Eliminar componente y sus cables en cascada
-  const handleDeleteComponent = (componentId: string) => {
-    const compToDelete = components.find((c) => c.id === componentId);
-    if (!compToDelete) return;
+  const handleDeleteComponent = useCallback(
+    (componentId: string) => {
+      const compToDelete = components.find((c) => c.id === componentId);
+      if (!compToDelete) return;
 
-    const pinIdsToRemove = new Set(compToDelete.pins.map((p) => p.id));
+      const pinIdsToRemove = new Set(compToDelete.pins.map((p) => p.id));
 
-    setWires((prevWires) =>
-      prevWires.filter(
-        (w) => !pinIdsToRemove.has(w.fromPinId) && !pinIdsToRemove.has(w.toPinId)
-      )
-    );
+      setWires((prevWires) =>
+        prevWires.filter(
+          (w) => !pinIdsToRemove.has(w.fromPinId) && !pinIdsToRemove.has(w.toPinId)
+        )
+      );
 
-    if (drawingWire && pinIdsToRemove.has(drawingWire.fromPinId)) {
-      setDrawingWire(null);
-    }
+      if (drawingWire && pinIdsToRemove.has(drawingWire.fromPinId)) {
+        setDrawingWire(null);
+      }
 
-    if (selectedComponentId === componentId) {
-      setSelectedComponentId(null);
-    }
+      if (selectedComponentId === componentId) {
+        setSelectedComponentId(null);
+      }
 
-    setComponents((prev) => prev.filter((c) => c.id !== componentId));
-  };
+      setComponents((prev) => prev.filter((c) => c.id !== componentId));
+    },
+    [components, drawingWire, selectedComponentId]
+  );
 
   // Agregar componente centrado en el área visible del canvas
   const handleAddComponent = (type: string) => {
@@ -118,7 +121,7 @@ export const SimulatorCanvas: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedComponentId, selectedWireId, drawingWire, components]);
+  }, [selectedComponentId, selectedWireId, handleDeleteComponent]);
 
   // Zoom
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {

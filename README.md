@@ -34,7 +34,8 @@
 ## Objetivos Específicos, Métricas y Criterios de Aceptación
 
 * **Velocidad de Carga de la App:** Cargar completamente en **menos de 2 segundos** sobre conexiones de 10 Mbps.
-  * *Criterio de aceptación:* El peso total del *bundle* inicial de recursos estáticos no debe superar los 3 MB.
+  * *Bundle Principal (UI/Lienzo):* No debe superar los 3 MB comprimidos en la descarga inicial.
+  * *Parser WASM (Tree-Sitter):* Se carga de forma diferida (lazy loading) únicamente cuando se inicia el editor/simulación. Su tamaño de transferencia en red no debe superar 1 MB comprimido (usando compresión Brotli/Gzip en servidor).
 * **Fluidez del Lienzo:** Mantener una tasa de **60 FPS constantes** con el lienzo completo (15 componentes activos y cableados).
   * *Criterio de aceptación:* El uso de CPU en el cliente no debe exceder el 30% en un procesador de gama baja de netbook escolar.
 * **Respuesta del Motor Físico:** Disparar efectos visuales por sobrepotencia ($P > P_{\\max}$) en **menos de 100 ms** tras la ocurrencia del evento en el código C++.

@@ -1,12 +1,10 @@
-import type { UICommand, WorkerEvent, CircuitNetlist } from '@domain-types';
+import type { UICommand, WorkerEvent } from '@domain-types';
 import { PhysicsEngine } from './physicsEngine';
-import { ArduinoCoreMock } from './arduinoCore';
 
 const physicsEngine = new PhysicsEngine();
-const arduinoCore = new ArduinoCoreMock();
 
 let isRunning = false;
-let tickInterval: any = null;
+let tickInterval: ReturnType<typeof setInterval> | null = null;
 const TICK_RATE_MS = 10; // 100 Hz de simulación en segundo plano
 
 const emitEvent = (event: WorkerEvent) => {
@@ -56,7 +54,13 @@ self.onmessage = (e: MessageEvent<UICommand>) => {
             break;
         case 'LOAD_USER_CODE':
             // Preparado para evaluación de WASM / C++ transpilado
-            emitEvent({ type: 'LOG_OUTPUT', payload: { message: 'Código C++ cargado en el entorno aislado.' } });
+            emitEvent({
+                type: 'LOG_OUTPUT',
+                payload: {
+                    sourceId: command.payload.targetComponentId,
+                    message: 'Código C++ cargado en el entorno aislado.',
+                },
+            });
             break;
     }
 };

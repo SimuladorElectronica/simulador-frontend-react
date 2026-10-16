@@ -21,7 +21,7 @@ export class PhysicsEngine {
     // 2. Evaluar cada componente con la información del circuito
     for (const comp of this.netlist.components) {
       const descriptor = COMPONENT_REGISTRY[comp.type];
-      if (!descriptor || !descriptor.stepSimulation) continue;
+      if (!descriptor) continue;
 
       const compPinVoltages: Record<string, number> = {};
       for (const pin of comp.pins) {

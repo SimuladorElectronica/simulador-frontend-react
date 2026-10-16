@@ -1,15 +1,20 @@
-import type { ComponentDescriptor } from '@domain-types';
-import { Esp32Descriptor, ProtoboardDescriptor, LedDescriptor, GenericDescriptor} from './components';
+import { eraseDescriptor, type AnyComponentDescriptor, type ComponentInstance } from '@domain-types';
+import { Esp32Descriptor, ProtoboardDescriptor, LedDescriptor, GenericDescriptor } from './manifests';
 
-export const COMPONENT_REGISTRY: Record<string, ComponentDescriptor<any>> = {
-  ESP32: Esp32Descriptor,
-  PROTOBOARD: ProtoboardDescriptor,
-  LED: LedDescriptor,
-  GENERIC: GenericDescriptor,
+// `eraseDescriptor` es el único punto donde se pierde el TState concreto (ver types/componentDescriptor.ts)
+export const COMPONENT_REGISTRY: Record<string, AnyComponentDescriptor> = {
+  ESP32: eraseDescriptor(Esp32Descriptor),
+  PROTOBOARD: eraseDescriptor(ProtoboardDescriptor),
+  LED: eraseDescriptor(LedDescriptor),
+  GENERIC: eraseDescriptor(GenericDescriptor),
 };
 
 // Helper para instanciar un nuevo componente fácilmente en el canvas
-export const createComponentInstance = (type: string, id: string, position: { x: number; y: number }) => {
+export const createComponentInstance = (
+  type: string,
+  id: string,
+  position: { x: number; y: number },
+): ComponentInstance => {
   const descriptor = COMPONENT_REGISTRY[type];
   if (!descriptor) throw new Error(`Componente no soportado: ${type}`);
 
