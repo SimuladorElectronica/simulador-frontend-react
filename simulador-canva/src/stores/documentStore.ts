@@ -20,7 +20,7 @@ export class DocumentStore {
         return this.document;
     }
 
-    // Modificación de UI (No altera el hash topológico)
+    // Modificación de UI
     public updateComponentPosition(id: string, x: number, y: number) {
         const comp = this.document.components.find((c) => c.id === id);
         if (comp) {
@@ -29,7 +29,7 @@ export class DocumentStore {
         }
     }
 
-    // Modificación de Topología (Altera el hash topológico)
+    // Modificación de Topología
     public addComponent(type: string, position: { x: number; y: number }) {
         const manifest = ManifestRegistry.get(type);
         if (!manifest) throw new Error(`Tipo de componente desconocido: ${type}`);
