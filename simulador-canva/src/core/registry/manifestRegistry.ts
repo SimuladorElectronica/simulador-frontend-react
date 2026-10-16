@@ -1,5 +1,5 @@
 import type { ComponentManifest } from '@types';
-import { LedManifest, BreadboardManifest } from '../manifests';
+import { LedManifest, BreadboardManifest, Esp32Manifest } from '../manifests';
 
 export class ManifestRegistry {
     private static catalog = new Map<string, ComponentManifest>();
@@ -7,6 +7,7 @@ export class ManifestRegistry {
     public static init() {
         this.register(LedManifest);
         this.register(BreadboardManifest);
+        this.register(Esp32Manifest);
     }
 
     public static register(manifest: ComponentManifest) {
