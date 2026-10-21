@@ -1,435 +1,304 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Stage, Layer, Line, Rect, Group } from 'react-konva';
-import Konva from 'konva';
-import type { ComponentInstance, Wire, Vector2D } from '@domain-types';
-import { createComponentInstance } from '@core/registry';
-import { ComponentRenderer } from './ComponentRenderer';
-import { ComponentDock } from './ComponentDock';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Layer, Stage } from 'react-konva';
+import type Konva from 'konva';
+import type { PinReference } from '@types';
+import { ManifestRegistry } from '@core/registry/manifestRegistry';
+import { documentStore } from '../stores/documentStore';
+import { useDocument } from './hooks/useDocument';
+import { ComponentNode } from './ComponentNode';
+import { WireGuide, WireNode } from './WireNode';
+import { PALETTE_DND_MIME } from './Palette';
+import { findNearestPin, resolveGuidePath, resolveWirePath } from './utils/pins';
 
-const CABLE_COLORS = [
-  { name: 'Rojo', hex: '#e74c3c' },
-  { name: 'Negro', hex: '#2c3e50' },
-  { name: 'Azul', hex: '#3498db' },
-  { name: 'Verde', hex: '#2ecc71' },
-  { name: 'Amarillo', hex: '#f1c40f' },
-  { name: 'Naranja', hex: '#e67e22' },
-  { name: 'Blanco', hex: '#ecf0f1' },
-];
+type Selection = { kind: 'component' | 'wire'; id: string } | null;
 
-const DOCK_WIDTH = 260; // Ancho del panel lateral
+/** Referencia estable y segura al catálogo (los métodos estáticos no deben perder `this`) */
+const getManifest = (type: string) => ManifestRegistry.get(type);
 
-const INITIAL_COMPONENTS: ComponentInstance[] = [
-  createComponentInstance('ESP32', 'esp32_1', { x: 80, y: 80 }),
-  createComponentInstance('PROTOBOARD', 'proto_1', { x: 300, y: 80 }),
-];
+const MIN_SCALE = 0.25;
+const MAX_SCALE = 2.5;
+const ZOOM_STEP = 1.08;
+/** Radio (en coordenadas de mundo) dentro del cual un pin "engancha" al cablear */
+const PIN_SNAP_RADIUS = 12;
 
-export const SimulatorCanvas: React.FC = () => {
-  const [components, setComponents] = useState<ComponentInstance[]>(INITIAL_COMPONENTS);
-  const [wires, setWires] = useState<Wire[]>([]);
-  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
-  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
-  const [activeColor, setActiveColor] = useState<string>('#e74c3c');
-  const [drawingWire, setDrawingWire] = useState<{ fromPinId: string; currentPos: Vector2D } | null>(null);
+interface SimulatorCanvasProps {
+    /** El canvas expone un método para que la paleta añada en el centro de la vista */
+    registerAddAtCenter?: (fn: (type: string) => void) => void;
+}
 
-  const [stageScale, setStageScale] = useState<number>(1);
-  const [stagePos, setStagePos] = useState<Vector2D>({ x: 0, y: 0 });
-  const [canvasDimensions, setCanvasDimensions] = useState({
-    width: window.innerWidth - DOCK_WIDTH,
-    height: window.innerHeight,
-  });
+export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
+    const doc = useDocument();
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const stageRef = useRef<Konva.Stage>(null);
 
-  const stageRef = useRef<Konva.Stage>(null);
+    const [size, setSize] = useState({ width: 800, height: 600 });
+    const [view, setView] = useState({ scale: 1, x: 40, y: 40 });
+    const [selection, setSelection] = useState<Selection>(null);
+    const [wiring, setWiring] = useState<{ from: PinReference; pointer: { x: number; y: number } } | null>(null);
+    const [hoverPin, setHoverPin] = useState<PinReference | null>(null);
 
-  // Reescalado dinámico al cambiar la ventana
-  useEffect(() => {
-    const handleResize = () => {
-      setCanvasDimensions({
-        width: window.innerWidth - DOCK_WIDTH,
-        height: window.innerHeight,
-      });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    const panningRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+    const viewRef = useRef(view);
+    const docRef = useRef(doc);
+    useEffect(() => {
+        viewRef.current = view;
+        docRef.current = doc;
+    }, [view, doc]);
 
-  // Eliminar componente y sus cables en cascada
-  const handleDeleteComponent = useCallback(
-    (componentId: string) => {
-      const compToDelete = components.find((c) => c.id === componentId);
-      if (!compToDelete) return;
+    // ----- Tamaño del contenedor -----
+    useEffect(() => {
+        const el = wrapperRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(() => {
+            setSize({ width: el.clientWidth, height: el.clientHeight });
+        });
+        ro.observe(el);
+        setSize({ width: el.clientWidth, height: el.clientHeight });
+        return () => ro.disconnect();
+    }, []);
 
-      const pinIdsToRemove = new Set(compToDelete.pins.map((p) => p.id));
-
-      setWires((prevWires) =>
-        prevWires.filter(
-          (w) => !pinIdsToRemove.has(w.fromPinId) && !pinIdsToRemove.has(w.toPinId)
-        )
-      );
-
-      if (drawingWire && pinIdsToRemove.has(drawingWire.fromPinId)) {
-        setDrawingWire(null);
-      }
-
-      if (selectedComponentId === componentId) {
-        setSelectedComponentId(null);
-      }
-
-      setComponents((prev) => prev.filter((c) => c.id !== componentId));
-    },
-    [components, drawingWire, selectedComponentId]
-  );
-
-  // Agregar componente centrado en el área visible del canvas
-  const handleAddComponent = (type: string) => {
-    const stage = stageRef.current;
-    let spawnPos: Vector2D = { x: 150, y: 150 };
-
-    if (stage) {
-      spawnPos = {
-        x: (-stagePos.x + canvasDimensions.width / 2) / stageScale - 50,
-        y: (-stagePos.y + canvasDimensions.height / 2) / stageScale - 50,
-      };
-    }
-
-    const newId = `${type.toLowerCase()}_${Date.now()}`;
-    const newComponent = createComponentInstance(type, newId, spawnPos);
-
-    setComponents((prev) => [...prev, newComponent]);
-    setSelectedComponentId(newId);
-    setSelectedWireId(null);
-  };
-
-  // Accesos rápidos por teclado
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-
-      if (e.key === 'Escape') {
-        setDrawingWire(null);
-        setSelectedWireId(null);
-        setSelectedComponentId(null);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedComponentId) {
-          handleDeleteComponent(selectedComponentId);
-        } else if (selectedWireId) {
-          setWires((prev) => prev.filter((w) => w.id !== selectedWireId));
-          setSelectedWireId(null);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedComponentId, selectedWireId, handleDeleteComponent]);
-
-  // Zoom
-  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
-    e.evt.preventDefault();
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const oldScale = stage.scaleX();
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-
-    const mousePointTo = {
-      x: (pointer.x - stage.x()) / oldScale,
-      y: (pointer.y - stage.y()) / oldScale,
-    };
-
-    const scaleBy = 1.1;
-    const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
-    const clampedScale = Math.max(0.2, Math.min(newScale, 4));
-
-    setStageScale(clampedScale);
-    setStagePos({
-      x: pointer.x - mousePointTo.x * clampedScale,
-      y: pointer.y - mousePointTo.y * clampedScale,
-    });
-  };
-
-  const getPinAbsolutePos = (pinId: string): Vector2D => {
-    for (const comp of components) {
-      const pin = comp.pins.find((p) => p.id === pinId);
-      if (pin) {
+    // ----- Puntero en coordenadas de mundo (aplica el transform del stage) -----
+    const getWorldPointer = useCallback((): { x: number; y: number } => {
+        const stage = stageRef.current;
+        const pointer = stage?.getPointerPosition();
+        if (!stage || !pointer) return { x: 0, y: 0 };
         return {
-          x: comp.position.x + pin.relativePos.x,
-          y: comp.position.y + pin.relativePos.y,
+            x: (pointer.x - stage.x()) / stage.scaleX(),
+            y: (pointer.y - stage.y()) / stage.scaleY(),
         };
-      }
-    }
-    return { x: 0, y: 0 };
-  };
+    }, []);
 
-  const handleDragMoveComponent = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
-    const newX = e.target.x();
-    const newY = e.target.y();
-
-    setComponents((prev) =>
-      prev.map((comp) => (comp.id === id ? { ...comp, position: { x: newX, y: newY } } : comp))
-    );
-  };
-
-  const handlePinClick = (pinId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
-    e.cancelBubble = true;
-    setSelectedWireId(null);
-    setSelectedComponentId(null);
-
-    if (drawingWire) {
-      if (drawingWire.fromPinId !== pinId) {
-        setWires((prev) => [
-          ...prev,
-          {
-            id: `wire_${Date.now()}`,
-            fromPinId: drawingWire.fromPinId,
-            toPinId: pinId,
-            color: activeColor,
-          },
-        ]);
-      }
-      setDrawingWire(null);
-    } else {
-      const existingWireIndex = wires.findLastIndex(
-        (w) => w.fromPinId === pinId || w.toPinId === pinId
-      );
-
-      if (existingWireIndex !== -1) {
-        const existingWire = wires[existingWireIndex];
-        const otherPinId =
-          existingWire.fromPinId === pinId ? existingWire.toPinId : existingWire.fromPinId;
-
-        setWires((prev) => prev.filter((_, idx) => idx !== existingWireIndex));
-        setActiveColor(existingWire.color);
-        setDrawingWire({
-          fromPinId: otherPinId,
-          currentPos: getPinAbsolutePos(pinId),
-        });
-      } else {
-        setDrawingWire({
-          fromPinId: pinId,
-          currentPos: getPinAbsolutePos(pinId),
-        });
-      }
-    }
-  };
-
-  const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.target === e.target.getStage()) {
-      setDrawingWire(null);
-      setSelectedWireId(null);
-      setSelectedComponentId(null);
-    }
-  };
-
-  const handleMouseMove = () => {
-    if (!drawingWire || !stageRef.current) return;
-    const stage = stageRef.current;
-    const relativePos = stage.getRelativePointerPosition();
-    if (relativePos) {
-      setDrawingWire({
-        ...drawingWire,
-        currentPos: relativePos,
-      });
-    }
-  };
-
-  const handleColorSelect = (colorHex: string) => {
-    setActiveColor(colorHex);
-    if (selectedWireId) {
-      setWires((prev) =>
-        prev.map((w) => (w.id === selectedWireId ? { ...w, color: colorHex } : w))
-      );
-    }
-  };
-
-  return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      {/* ÁREA PRINCIPAL DEL CANVAS */}
-      <div style={{ position: 'relative', flex: 1, height: '100%' }}>
-        {/* BARRA DE HERRAMIENTAS FLOTANTE SUPERIOR: Solo Colores y Eliminación */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 20,
-            left: 20,
-            zIndex: 10,
-            background: '#1e1e1e',
-            padding: '8px 14px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-            border: '1px solid #333',
-            color: '#fff',
-            fontFamily: 'sans-serif',
-            fontSize: '13px',
-          }}
-        >
-          <span style={{ fontSize: '12px', color: '#aaa' }}>Color Cable:</span>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {CABLE_COLORS.map((c) => (
-              <button
-                key={c.hex}
-                title={c.name}
-                onClick={() => handleColorSelect(c.hex)}
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  backgroundColor: c.hex,
-                  border: activeColor === c.hex ? '2px solid #fff' : '2px solid transparent',
-                  cursor: 'pointer',
-                  transform: activeColor === c.hex ? 'scale(1.15)' : 'scale(1)',
-                  transition: 'all 0.15s ease',
-                }}
-              />
-            ))}
-          </div>
-
-          {(selectedComponentId || selectedWireId) && (
-            <>
-              <div style={{ width: '1px', height: '18px', background: '#444' }} />
-              <button
-                onClick={() => {
-                  if (selectedComponentId) handleDeleteComponent(selectedComponentId);
-                  else if (selectedWireId) {
-                    setWires((prev) => prev.filter((w) => w.id !== selectedWireId));
-                    setSelectedWireId(null);
-                  }
-                }}
-                style={{
-                  backgroundColor: '#c0392b',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '5px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '12px',
-                }}
-              >
-                Eliminar {selectedComponentId ? 'Componente' : 'Cable'} (Supr)
-              </button>
-            </>
-          )}
-        </div>
-
-        {/* LIENZO KONVA */}
-        <Stage
-          width={canvasDimensions.width}
-          height={canvasDimensions.height}
-          onWheel={handleWheel}
-          draggable={!drawingWire}
-          x={stagePos.x}
-          y={stagePos.y}
-          scaleX={stageScale}
-          scaleY={stageScale}
-          onMouseMove={handleMouseMove}
-          onClick={handleStageClick}
-          onDragEnd={(e) => {
-            if (e.target === stageRef.current) {
-              setStagePos({ x: e.target.x(), y: e.target.y() });
+    // ----- Añadir en el centro de la vista (doble clic en la paleta) -----
+    useEffect(() => {
+        if (!registerAddAtCenter) return;
+        registerAddAtCenter((type: string) => {
+            const stage = stageRef.current;
+            if (!stage) return;
+            const rect = stage.container().getBoundingClientRect();
+            const v = viewRef.current;
+            const center = {
+                x: (rect.width / 2 - v.x) / v.scale,
+                y: (rect.height / 2 - v.y) / v.scale,
+            };
+            // Pequeño espiral para que varios componentes no queden superpuestos
+            const n = docRef.current.components.length;
+            const offset = { x: (n % 5) * 24 - 48, y: (n % 5) * 24 - 48 };
+            try {
+                documentStore.addComponent(type, { x: center.x + offset.x, y: center.y + offset.y });
+                setSelection(null);
+            } catch {
+                // Tipo sin manifiesto registrado: se ignora silenciosamente
             }
-          }}
-          ref={stageRef}
-          style={{ background: '#121212', cursor: drawingWire ? 'crosshair' : 'default' }}
+        });
+    }, [registerAddAtCenter]);
+
+    // ----- Selección / borrado con teclado -----
+    const deleteSelection = useCallback(() => {
+        if (!selection) return;
+        if (selection.kind === 'component') documentStore.removeComponent(selection.id);
+        else documentStore.removeWire(selection.id);
+        setSelection(null);
+    }, [selection]);
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement | null;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+            if (e.key === 'Escape') {
+                setWiring(null);
+                setHoverPin(null);
+                setSelection(null);
+            }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.preventDefault();
+                deleteSelection();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [deleteSelection]);
+
+    // ----- Zoom con rueda (hacia el cursor) -----
+    const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
+        e.evt.preventDefault();
+        const stage = stageRef.current;
+        const pointer = stage?.getPointerPosition();
+        if (!stage || !pointer) return;
+
+        const oldScale = stage.scaleX();
+        const direction = e.evt.deltaY > 0 ? -1 : 1;
+        const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, direction > 0 ? oldScale * ZOOM_STEP : oldScale / ZOOM_STEP));
+
+        const worldPoint = {
+            x: (pointer.x - stage.x()) / oldScale,
+            y: (pointer.y - stage.y()) / oldScale,
+        };
+        setView({
+            scale: newScale,
+            x: pointer.x - worldPoint.x * newScale,
+            y: pointer.y - worldPoint.y * newScale,
+        });
+    };
+
+    // ----- Pan (arrastrar el fondo) -----
+    const handleStageMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+        if (e.target !== e.target.getStage()) return;
+        panningRef.current = {
+            startX: e.evt.clientX,
+            startY: e.evt.clientY,
+            origX: viewRef.current.x,
+            origY: viewRef.current.y,
+        };
+    };
+
+    // ----- Movimiento: pan o previsualización de cable -----
+    const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+        const panning = panningRef.current;
+        if (panning) {
+            setView((v) => ({
+                ...v,
+                x: panning.origX + (e.evt.clientX - panning.startX),
+                y: panning.origY + (e.evt.clientY - panning.startY),
+            }));
+        }
+        if (wiring) {
+            const world = getWorldPointer();
+            setWiring((w) => (w ? { ...w, pointer: world } : w));
+            setHoverPin(findNearestPin(world, docRef.current.components, getManifest, PIN_SNAP_RADIUS));
+        }
+    };
+
+    // ----- Soltar: completar cable o terminar el pan -----
+    const handleStageMouseUp = () => {
+        panningRef.current = null;
+        if (!wiring) return;
+
+        const world = getWorldPointer();
+        const target = findNearestPin(world, docRef.current.components, getManifest, PIN_SNAP_RADIUS);
+        if (target) documentStore.addWire(wiring.from, target);
+        setWiring(null);
+        setHoverPin(null);
+    };
+
+    const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+        if (e.target === e.target.getStage()) setSelection(null);
+    };
+
+    // ----- Trazado de cables desde un pin -----
+    const startWiring = (ref: PinReference, evt: Konva.KonvaEventObject<MouseEvent>) => {
+        evt.cancelBubble = true;
+        setSelection(null);
+        setWiring({ from: ref, pointer: getWorldPointer() });
+    };
+
+    // ----- Drag & drop desde la paleta -----
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        const type = e.dataTransfer.getData(PALETTE_DND_MIME);
+        if (!type) return;
+        const rect = wrapperRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const v = view;
+        const world = {
+            x: (e.clientX - rect.left - v.x) / v.scale,
+            y: (e.clientY - rect.top - v.y) / v.scale,
+        };
+        try {
+            const inst = documentStore.addComponent(type, world);
+            setSelection({ kind: 'component', id: inst.id });
+        } catch {
+            // Tipo sin manifiesto registrado: se ignora silenciosamente
+        }
+    };
+
+    return (
+        <div
+            ref={wrapperRef}
+            style={{
+                flex: 1,
+                position: 'relative',
+                overflow: 'hidden',
+                background: '#eceff1',
+                cursor: wiring ? 'crosshair' : 'default',
+            }}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
         >
-          <Layer>
-            {/* 1. COMPONENTES */}
-            {components.map((comp) => {
-              const isSelected = comp.id === selectedComponentId;
-              return (
-                <Group
-                  key={comp.id}
-                  onClick={(e) => {
-                    e.cancelBubble = true;
-                    setSelectedComponentId(comp.id);
-                    setSelectedWireId(null);
-                  }}
-                  onDragStart={() => {
-                    setSelectedComponentId(comp.id);
-                    setSelectedWireId(null);
-                  }}
-                >
-                  {isSelected && (
-                    <Rect
-                      x={comp.position.x - 4}
-                      y={comp.position.y - 4}
-                      width={(comp.width || 120) + 8}
-                      height={(comp.height || 90) + 8}
-                      stroke="#3498db"
-                      strokeWidth={2}
-                      dash={[6, 4]}
-                      cornerRadius={8}
-                      listening={false}
-                    />
-                  )}
-                  <ComponentRenderer
-                    instance={comp}
-                    onPinClick={handlePinClick}
-                    onDragMove={(e) => handleDragMoveComponent(comp.id, e)}
-                  />
-                </Group>
-              );
-            })}
+            <Stage
+                ref={stageRef}
+                width={size.width}
+                height={size.height}
+                x={view.x}
+                y={view.y}
+                scaleX={view.scale}
+                scaleY={view.scale}
+                onMouseDown={handleStageMouseDown}
+                onMouseMove={handleStageMouseMove}
+                onMouseUp={handleStageMouseUp}
+                onClick={handleStageClick}
+                onWheel={handleWheel}
+            >
+                {/* Capa inferior: componentes */}
+                <Layer>
+                    {doc.components.map((c) => (
+                        <ComponentNode
+                            key={c.id}
+                            instance={c}
+                            manifest={ManifestRegistry.get(c.type)}
+                            selected={selection?.kind === 'component' && selection.id === c.id}
+                            wiringFrom={wiring?.from ?? null}
+                            hoverPin={hoverPin}
+                            onSelect={(id) => setSelection({ kind: 'component', id })}
+                            onStartWiring={startWiring}
+                            onPinHover={setHoverPin}
+                            onChangePosition={(id, x, y) => documentStore.updateComponentPosition(id, x, y)}
+                        />
+                    ))}
+                </Layer>
+                {/* Capa superior: cables, siempre visibles por encima de los componentes.
+                    Los paths se resuelven aquí (en el canvas) a partir del snapshot y se
+                    pasan como props primitivas: ver el comentario de WireNode. */}
+                <Layer>
+                    {doc.wires.map((w) => {
+                        const d = resolveWirePath(doc, w);
+                        if (!d) return null;
+                        return (
+                            <WireNode
+                                key={w.id}
+                                wireId={w.id}
+                                d={d}
+                                color={w.color ?? '#e74c3c'}
+                                selected={selection?.kind === 'wire' && selection.id === w.id}
+                                onSelect={(id) => setSelection({ kind: 'wire', id })}
+                            />
+                        );
+                    })}
+                    {wiring && resolveGuidePath(doc, wiring.from, wiring.pointer) && (
+                        <WireGuide d={resolveGuidePath(doc, wiring.from, wiring.pointer)!} />
+                    )}
+                </Layer>
+            </Stage>
 
-            {/* 2. CABLES CONECTADOS */}
-            {wires.map((wire) => {
-              const start = getPinAbsolutePos(wire.fromPinId);
-              const end = getPinAbsolutePos(wire.toPinId);
-              const isSelected = wire.id === selectedWireId;
-
-              return (
-                <React.Fragment key={wire.id}>
-                  {isSelected && (
-                    <Line
-                      points={[start.x, start.y, end.x, end.y]}
-                      stroke="#ffffff"
-                      strokeWidth={8}
-                      lineCap="round"
-                      opacity={0.8}
-                      listening={false}
-                    />
-                  )}
-                  <Line
-                    points={[start.x, start.y, end.x, end.y]}
-                    stroke={wire.color}
-                    strokeWidth={4}
-                    lineCap="round"
-                    hitStrokeWidth={5}
-                    onClick={(e) => {
-                      e.cancelBubble = true;
-                      setSelectedWireId(wire.id);
-                      setSelectedComponentId(null);
-                      setActiveColor(wire.color);
-                    }}
-                  />
-                </React.Fragment>
-              );
-            })}
-
-            {/* 3. CABLE FLOTANTE */}
-            {drawingWire && (() => {
-              const start = getPinAbsolutePos(drawingWire.fromPinId);
-              return (
-                <Line
-                  points={[start.x, start.y, drawingWire.currentPos.x, drawingWire.currentPos.y]}
-                  stroke={activeColor}
-                  strokeWidth={3}
-                  dash={[6, 6]}
-                  lineCap="round"
-                  listening={false}
-                />
-              );
-            })()}
-          </Layer>
-        </Stage>
-      </div>
-
-      {/* DOCK LATERAL DERECHO */}
-      <ComponentDock onAddComponent={handleAddComponent} />
-    </div>
-  );
-};
+            <div
+                style={{
+                    position: 'absolute',
+                    left: 10,
+                    bottom: 10,
+                    padding: '6px 10px',
+                    background: 'rgba(255,255,255,0.85)',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    color: '#546e7a',
+                    pointerEvents: 'none',
+                }}
+            >
+                Rueda: zoom · Arrastra el fondo: mover vista · Arrastra de un pin a otro: cable · Supr: borrar · Esc: cancelar
+            </div>
+        </div>
+    );
+}
