@@ -3,7 +3,7 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación III (RepoSense + análisis de calidad + constancia). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-10-28.
+> Generado: 2026-10-29.
 
 ## 1. Veredicto
 
@@ -11,12 +11,12 @@
 |---|---|
 | Tipo de proyecto | frontend |
 | Índice de calidad de servicios | **54/100** (mínimo 60) |
-| Criterios cumplidos | **12/15** |
+| Criterios cumplidos | **12/14** |
 | Aprobado (semáforo) | **NO** |
 | Código (LOC) | 1,034 |
 | Archivos de código | 20 |
 | Tests (archivos) | 0 |
-| Cobertura de líneas | no medible (mínimo 80%) |
+| Cobertura de líneas | no aplica (frontend sin herramienta de cobertura E2E) (mínimo 80%) |
 | Capas detectadas | vistas |
 
 > **Aprobado** exige cumplir **todos** los criterios del semáforo. No es una nota: sirve para ordenar y priorizar la revisión.
@@ -35,7 +35,7 @@
 
 | Alumno | Sesiones | Cumplimiento | Pausa | Recencia | IC | Nivel | Para subir de nivel |
 |---|--:|--:|--:|--:|--:|--|--|
-| IvoGiovarruscio | 7 | 32% | 14 d | 50% | **28** | No aprueba | Cumplimiento 32% (mín. 50%); Pausa 14 d (máx. 10 d) |
+| IvoGiovarruscio | 8 | 36% | 14 d | 93% | **37** | No aprueba | Cumplimiento 36% (mín. 50%); Pausa 14 d (máx. 10 d) |
 
 > Para aprobar el IC: **2 sesiones por semana** sostenidas, sin pausas mayores a **10 días** y con actividad en las **últimas 2 semanas**. Se excluyen merges, bots y al docente. Zona horaria UTC-3.
 
@@ -129,17 +129,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 - **Por qué importa:** Piezas muy enlazadas hacen que un cambio se propague y que sea difícil reemplazar partes.
 - **Tu resultado:** **1** unidad(es) con acoplamiento alto _(máximo 2 por 1000 LOC)_
 
-### 14. Cobertura de tests (Cob) — A REVISAR
-
-- **Qué mide:** Porcentaje de líneas de código ejecutadas por la suite de tests (cobertura real, no cantidad de archivos de test).
-- **Por qué importa:** Un test que existe pero no ejecuta el código no protege de nada: la cobertura muestra qué partes quedan sin verificar.
-- **Tu resultado:** **no medible** (sin tests, sin runner o sin artefacto de cobertura) _(mínimo 80% de líneas)_
-- **Para investigar la causa:**
-    - ¿Qué módulos o ramas del sistema nunca se ejecutan en los tests?
-    - ¿Los tests prueban el camino principal y los errores, o solo el caso feliz?
-    - ¿La suite se puede correr en CI sin base de datos ni servicios externos?
-
-### 15. Vistas del frontend (Vistas) — OK
+### 14. Vistas del frontend (Vistas) — OK
 
 - **Qué mide:** Cantidad de vistas/componentes de pantalla del frontend.
 - **Por qué importa:** El frontend se mide por pantallas: pocas vistas sugiere poca cobertura de la interfaz pedida.
@@ -153,7 +143,6 @@ Criterios que hoy están en rojo y qué habría que cambiar para alcanzar el niv
 |---|---|---|---|
 | Índice de calidad de servicios (indice) | índice **54/100** | mínimo 60 | Subir el índice a ≥60 corrigiendo primero las señales de más peso: duplicación, secretos, SQL y capas. |
 | Separación en capas (capas) | **1** capa(s) detectada(s): vistas | mínimo 2 capas (a partir de 150 LOC) | Separar el código en al menos 2 capas con responsabilidades claras (rutas/controladores, servicios, modelos o acceso a datos). |
-| Cobertura de tests (Cob) | **no medible** (sin tests, sin runner o sin artefacto de cobertura) | mínimo 80% de líneas | Publicar cobertura (o correr la suite con coverage) y cubrir ≥80% de líneas. |
 
 > Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo.
 
