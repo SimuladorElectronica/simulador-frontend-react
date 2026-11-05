@@ -141,6 +141,8 @@ Criterios que hoy están en rojo y, para cada uno, una explicación breve de **c
 
 > Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo. Después de corregir, volvé a correr la medición: el semáforo se recalcula sobre `main`.
 
+> **Tests (informativo):** hoy tenés **0** archivo(s) de test; la meta es **5**, pero **no** es una compuerta del semáforo. Para acercarte, agregá tests de los flujos principales (servicios y endpoints) y corré la suite con coverage.
+
 ## 6. Anexo: dónde mirar
 
 Archivos donde el análisis encontró cada señal en rojo (sin número de línea, a propósito):
