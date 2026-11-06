@@ -27,6 +27,14 @@ export interface HostInterface {
     digitalWrite(gpio: number, level: number): void;
     digitalRead(gpio: number): number;
     analogRead(gpio: number): number;
+    /** PWM 8 bits (0-255), ESP32 LEDC */
+    analogWrite(gpio: number, duty: number): void;
+    /** Suspende la ejecución virtual durante ms (no bloquea el reloj real) */
+    delay(ms: number): void;
+    delayMicroseconds(us: number): void;
+    millis(): number;
+    micros(): number;
     getTimeUs(): number;
     serialPrint(text: string): void;
+    serialPrintln(text?: string): void;
 }
