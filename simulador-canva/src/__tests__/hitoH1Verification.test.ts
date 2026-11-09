@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { DocumentStore } from '../stores/documentStore';
-import { LedManifest,BreadboardManifest, Esp32Manifest } from '@core/manifests';
 import type { CircuitDocument } from '@types';
 
 describe('VERIFICACIÓN HITO H1: Fundación y Separación Dominio/Vista', () => {

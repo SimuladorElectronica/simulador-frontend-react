@@ -50,7 +50,7 @@ class SimulationClient {
                 simulationStore.applyStatus(event.payload.state, event.payload.virtualTimeUs);
                 break;
             case 'SNAPSHOT':
-                simulationStore.applySnapshot(event.payload.virtualTimeUs, event.payload.changes, event.payload.seq);
+                simulationStore.applySnapshot(event.payload.virtualTimeUs, event.payload.changes, event.payload.seq, event.payload.type);
                 this.post({ type: 'ACK_SNAPSHOT', payload: { seq: event.payload.seq } });
                 break;
             case 'EVENT':

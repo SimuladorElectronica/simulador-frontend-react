@@ -125,4 +125,31 @@ describe('GPIO <-> Solver (driver push-pull + PWM DC)', () => {
         const padNet = nl2.elements.find((e) => e.id === 'esp:gpio_2')!.terminals.pad;
         expect(sol.nodeVoltages[padNet]).toBeCloseTo(3.3, 2);
     });
+
+    // -------------------------------------------------------------------------
+    // Regresión: "armé el circuito sin cargar código y todos los GPIO tenían
+    // 1.65 V" (pull-up y pull-down activos a la vez = divisor 45k/45k).
+    // -------------------------------------------------------------------------
+    it('sin código cargado los GPIO están en alta impedancia: 0 V y sin consumo', () => {
+        const netlist = buildNetlist(makeProjection(), manifestArray(Esp32Manifest, LedManifest));
+        const sol = solve(netlist); // sin estados de runtime: así arranca el MCU
+
+        expect(sol.converged).toBe(true);
+
+        const pad2 = netlist.elements.find((e) => e.id === 'esp:gpio_2')!.terminals.pad;
+        const pad1 = netlist.elements.find((e) => e.id === 'esp:gpio_1')!.terminals.pad;
+
+        // Ni el pin cableado al LED ni un pin sin conexión deben tener tensión
+        expect(sol.nodeVoltages[pad2]).toBeLessThan(0.01);
+        expect(sol.nodeVoltages[pad1]).toBeLessThan(0.01);
+        expect(sol.elementResults['esp:gpio_2'].voltage).toBeLessThan(0.01);
+        expect(sol.elementResults['esp:gpio_1'].voltage).toBeLessThan(0.01);
+
+        // El LED queda apagado (sin corriente desde el pin)
+        expect(sol.elementResults['led1:d1'].conducting).toBe(false);
+        expect(sol.elementResults['led1:d1'].current).toBeCloseTo(0, 6);
+
+        // El regulador interno no debe consumir por pulls "fantasma"
+        expect(sol.elementResults['esp:vcc_3v3'].current).toBeLessThan(1e-4);
+    });
 });

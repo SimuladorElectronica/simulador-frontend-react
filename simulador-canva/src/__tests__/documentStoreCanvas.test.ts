@@ -71,6 +71,18 @@ describe('DocumentStore: altas/bajas y validación de cables (canvas)', () => {
         expect(store.getWire(wire.id)).toBeUndefined();
     });
 
+    it('removeComponent también elimina el programa del MCU (no queda huérfano en el documento)', () => {
+        const esp = store.addComponent('core/esp32@1', { x: 0, y: 0 });
+        const bb = store.addComponent('core/breadboard@1', { x: 100, y: 0 });
+        store.setProgram(esp.id, 'void setup() {} void loop() {}');
+        expect(store.getDocument().programs).toHaveLength(1);
+
+        store.removeComponent(esp.id);
+        expect(store.getDocument().programs).toHaveLength(0);
+        expect(store.getSimulationProjection().programs).toHaveLength(0);
+        expect(store.getDocument().components.map((c) => c.id)).toEqual([bb.id]);
+    });
+
     it('removeWire borra solo el cable indicado', () => {
         const led = store.addComponent('core/led@1', { x: 0, y: 0 });
         const bb = store.addComponent('core/breadboard@1', { x: 100, y: 0 });
@@ -79,6 +91,32 @@ describe('DocumentStore: altas/bajas y validación de cables (canvas)', () => {
 
         store.removeWire(w1.id);
         expect(store.getDocument().wires.length).toBe(1);
+    });
+
+    it('setProgram guarda el sketch en el documento y en la proyección para el worker', () => {
+        const esp = store.addComponent('core/esp32@1', { x: 0, y: 0 });
+        const before = store.getSnapshot();
+
+        store.setProgram(esp.id, 'void setup() {} void loop() {}');
+
+        // La proyección (que es lo que viaja al worker) incluye el programa:
+        // así el sketch sobrevive a los LOAD_CIRCUIT por cambios de topología.
+        const proj = store.getSimulationProjection();
+        expect(proj.programs).toHaveLength(1);
+        expect(proj.programs[0]).toMatchObject({
+            mcuComponentId: esp.id,
+            language: 'cpp-subset',
+            source: 'void setup() {} void loop() {}',
+        });
+
+        // React debe ver una referencia nueva para re-renderizar
+        expect(store.getSnapshot()).not.toBe(before);
+        expect(store.getSnapshot().programs).toHaveLength(1);
+
+        // Recargar el mismo MCU reemplaza el sketch (no acumula duplicados)
+        store.setProgram(esp.id, 'void setup() { pinMode(2, 1); } void loop() {}');
+        expect(store.getSimulationProjection().programs).toHaveLength(1);
+        expect(store.getDocument().programs[0].source).toContain('pinMode');
     });
 
     it('la proyección de simulación excluye tipos sin manifiesto', () => {

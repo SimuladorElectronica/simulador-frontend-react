@@ -72,6 +72,16 @@ function ledModel(v: number, params: Record<string, number>): { i: number; g: nu
     return { i: 0, g: gmin };
 }
 
+/**
+ * Un monitor con `action: 'destroy'` marca el elemento con `destroyed = 1`:
+ * a partir de ahí se comporta como un circuito ABIERTO (no se estampa en la
+ * MNA y no circula corriente). La referencia de tierra nunca se destruye:
+ * perderla volvería singular toda la matriz.
+ */
+function isDestroyed(elem: Netlist['elements'][number]): boolean {
+    return elem.primitive !== 'groundRef' && elem.params.destroyed === 1;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Solver nodal (MNA - Análisis Nodal Modificado) con Newton-Raphson */
 /* ------------------------------------------------------------------ */
@@ -120,7 +130,7 @@ function buildMNA(
 
     let vsCount = 0;
     for (const elem of netlist.elements) {
-        if (elem.primitive === 'voltageSource') {
+        if (elem.primitive === 'voltageSource' && !isDestroyed(elem)) {
             vsIndex.set(elem.id, nodeCount + vsCount++);
         }
     }
@@ -155,6 +165,7 @@ function buildMNA(
     };
 
     for (const elem of netlist.elements) {
+        if (isDestroyed(elem)) continue; // circuito abierto: no se estampa en la MNA
         const t = elem.terminals;
         const p = elem.params;
 
@@ -260,12 +271,14 @@ function buildMNA(
                         addConductance(pad, ground, 1e-7, 0);
                     }
                 } else {
-                    // Sin estado de runtime (compatibilidad): pull-up y pull-down
-                    if (pad !== null && supply !== null) {
-                        addConductance(pad, supply, 1 / pullUp, 0);
-                    }
+                    // Sin estado de runtime (todavía no se ejecutó pinMode/digitalWrite):
+                    // el pin arranca en ALTA IMPEDANCIA, como un ESP32 recién encendido.
+                    // Activar pull-up y pull-down a la vez (lo anterior) formaba un
+                    // divisor 45k/45k que dejaba TODOS los pines en 1.65 V ficticios
+                    // y consumía ~0.8 mA del regulador interno sin que hubiera código.
+                    // Solo una conductancia de fuga mínima evita la matriz singular.
                     if (pad !== null) {
-                        addConductance(pad, ground, 1 / pullDown, 0);
+                        addConductance(pad, ground, 1e-7, 0);
                     }
                 }
                 break;
@@ -375,8 +388,8 @@ export function solve(netlist: Netlist, gpioStates?: GpioStates): SolverSolution
     for (const elem of netlist.elements) {
         const t = elem.terminals;
         const p = elem.params;
-        let voltage = 0;
-        let current = 0;
+        let voltage: number;
+        let current: number;
 
         switch (elem.primitive) {
             case 'resistor': {
@@ -426,10 +439,13 @@ export function solve(netlist: Netlist, gpioStates?: GpioStates): SolverSolution
             }
         }
 
+        const destroyed = isDestroyed(elem);
+        if (destroyed) current = 0; // circuito abierto: la tensión sigue siendo la de sus nodos
+
         const power = voltage * current;
         let conducting: boolean | undefined;
         if (elem.primitive === 'led') {
-            conducting = voltage > (p.forwardVoltage ?? 1.8);
+            conducting = !destroyed && voltage > (p.forwardVoltage ?? 1.8);
         }
 
         elementResults[elem.id] = {
@@ -437,6 +453,7 @@ export function solve(netlist: Netlist, gpioStates?: GpioStates): SolverSolution
             current,
             power,
             ...(conducting !== undefined ? { conducting } : {}),
+            ...(destroyed ? { destroyed: true } : {}),
         };
     }
 

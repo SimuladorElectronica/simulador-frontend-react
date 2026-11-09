@@ -29,7 +29,7 @@ export const LedManifest: ComponentManifest = {
       comparison: 'above',
       limit: 0.06,           // 60 mW
       duration: 1500000,     // 1.5 s en us virtuales
-      event: 'LED_BURNED',
+      event: 'COMPONENT_BURNED',
       action: 'destroy',
     },
   ],

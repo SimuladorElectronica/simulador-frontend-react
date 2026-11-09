@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDocument } from './hooks/useDocument';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
+import { documentStore } from '../stores/documentStore';
 import { simulationClient } from '../worker/simulationClient';
 
 export const DEFAULT_SKETCH = `const int LED_PIN = 2;
@@ -36,8 +37,11 @@ export function ProgramEditor() {
             setStatus('⚠ No hay MCU en el circuito (agregá un ESP32)');
             return;
         }
+        // 1) Documento: el sketch viaja en la proyección y sobrevive a cambios de circuito
+        documentStore.setProgram(mcu.id, source);
+        // 2) Worker: compilación/arranque inmediato (sin esperar al próximo render)
         simulationClient.setProgram(mcu.id, source);
-        setStatus(`✓ Programa enviado a ${mcu.id} (ver consola/panel)`);
+        setStatus(`✓ Programa cargado en ${mcu.id} (monitor serie en el panel derecho)`);
     };
 
     return (

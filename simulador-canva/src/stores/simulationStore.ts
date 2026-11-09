@@ -45,8 +45,16 @@ export class SimulationStore {
         return log;
     }
 
-    public applySnapshot(virtualTimeUs: number, changes: Record<string, Record<string, unknown>>, seq = 0) {
-        const states: Record<string, Record<string, unknown>> = { ...this.snapshot.states };
+    public applySnapshot(
+        virtualTimeUs: number,
+        changes: Record<string, Record<string, unknown>>,
+        seq = 0,
+        type: 'full' | 'delta' = 'delta',
+    ) {
+        // 'full' es el estado completo del circuito (tras LOAD_CIRCUIT, RESET o
+        // STEP): reemplaza todo, para que los elementos de un componente
+        // eliminado no queden "fantasma" en el panel. 'delta' fusiona.
+        const states: Record<string, Record<string, unknown>> = type === 'full' ? {} : { ...this.snapshot.states };
         for (const [id, delta] of Object.entries(changes)) {
             states[id] = { ...states[id], ...delta };
         }
@@ -65,12 +73,22 @@ export class SimulationStore {
     }
 
     public applyEvent(eventType: string, sourceId: string, data: unknown) {
+        if (eventType === 'SERIAL_RESET') {
+            // Reset / circuito recargado: el monitor serie arranca vacío
+            this.rebuild({ serial: [] });
+            return;
+        }
         if (eventType === 'SERIAL') {
             const entry: SimLogEntry = { timeUs: this.snapshot.virtualTimeUs, text: String(data ?? '') };
             const serial = [...this.snapshot.serial.slice(-99), entry];
             // eslint-disable-next-line no-console
             console.log(`[serial ${sourceId}] ${entry.text}`);
             this.rebuild({ serial });
+            return;
+        }
+        if (eventType === 'PROGRAM_ERROR' || eventType === 'PROGRAM_FAULT') {
+            const log = this.pushLog(`⚠ ${eventType} en ${sourceId}: ${formatDiagnostics(data)}`);
+            this.rebuild({ log });
             return;
         }
         if (eventType === 'SOLVER_RESULT' && data && typeof data === 'object') {
@@ -130,6 +148,20 @@ function safeStringify(v: unknown): string {
     } catch {
         return String(v);
     }
+}
+
+/** Formatea los diagnósticos del compilador subset (o un mensaje simple). */
+function formatDiagnostics(data: unknown): string {
+    if (typeof data === 'string') return data;
+    if (Array.isArray(data)) {
+        return data
+            .map((d) => {
+                const diag = d as { code?: string; message?: string; line?: number };
+                return `${diag.code ?? 'ERROR'} (línea ${diag.line ?? '?'}): ${diag.message ?? safeStringify(d)}`;
+            })
+            .join(' · ');
+    }
+    return safeStringify(data);
 }
 
 export const simulationStore = new SimulationStore();

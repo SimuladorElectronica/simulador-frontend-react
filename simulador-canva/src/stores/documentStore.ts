@@ -1,4 +1,4 @@
-import type { CircuitDocument, ComponentInstance, Wire, PinReference, SimulationProjection } from '@types';
+import type { CircuitDocument, ComponentInstance, ProgramDocument, Wire, PinReference, SimulationProjection } from '@types';
 import { ManifestRegistry } from '../core/registry/manifestRegistry';
 
 export class DocumentStore {
@@ -53,7 +53,7 @@ export class DocumentStore {
                 params: { ...c.params },
             })),
             wires: this.document.wires.map((w) => ({ ...w, from: { ...w.from }, to: { ...w.to } })),
-            programs: this.document.programs,
+            programs: this.document.programs.map((p) => ({ ...p })),
             meta: { ...this.document.meta },
         };
     }
@@ -99,6 +99,10 @@ export class DocumentStore {
         this.document.wires = this.document.wires.filter(
             (w) => w.from.componentId !== id && w.to.componentId !== id,
         );
+        // El sketch de un MCU eliminado también se descarta: si quedara, el
+        // worker reportaría PROGRAM_ERROR en cada LOAD_CIRCUIT por un MCU
+        // que ya no existe.
+        this.document.programs = this.document.programs.filter((p) => p.mcuComponentId !== id);
         this.notifyUI();
     }
 
@@ -130,6 +134,26 @@ export class DocumentStore {
 
     public getWire(id: string): Wire | undefined {
         return this.document.wires.find((w) => w.id === id);
+    }
+
+    /**
+     * Guarda (o reemplaza) el sketch del MCU en el documento.
+     * Forma parte de la topología de simulación: al incluirse en la proyección,
+     * el sketch se reenvía al Worker en cada LOAD_CIRCUIT y sobrevive a los
+     * cambios de circuito (añadir un cable no borra el programa cargado).
+     */
+    public setProgram(mcuComponentId: string, source: string): ProgramDocument {
+        const program: ProgramDocument = {
+            mcuComponentId,
+            language: 'cpp-subset',
+            languageVersion: '1.0.0',
+            source,
+        };
+        const idx = this.document.programs.findIndex((p) => p.mcuComponentId === mcuComponentId);
+        if (idx >= 0) this.document.programs[idx] = program;
+        else this.document.programs.push(program);
+        this.notifyUI();
+        return program;
     }
 
     /**
