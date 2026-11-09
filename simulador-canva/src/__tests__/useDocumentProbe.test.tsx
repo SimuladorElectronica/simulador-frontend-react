@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Aísla si `useDocument` (useSyncExternalStore) re-renderiza al cambiar el store */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { act } from 'react';
+import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { documentStore } from '../stores/documentStore';
@@ -12,8 +12,12 @@ let lastWiresLen = -1;
 
 function Probe() {
     const doc = useDocument();
-    renders++;
-    lastWiresLen = doc.wires.length;
+    // Registrar en un efecto (fuera del render): escribir una variable externa
+    // durante el render es un side effect (react-hooks/globals).
+    useEffect(() => {
+        renders++;
+        lastWiresLen = doc.wires.length;
+    });
     return null;
 }
 

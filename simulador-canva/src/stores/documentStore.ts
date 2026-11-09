@@ -75,7 +75,7 @@ export class DocumentStore {
         // Inicializar params con los defaults declarados en el manifiesto (si los hay)
         const params: Record<string, number | string | boolean> = {};
         for (const [key, spec] of Object.entries(manifest.parameters ?? {})) {
-            params[key] = spec.default;
+            params[key] = spec.default as number | string | boolean;
         }
 
         const newInst: ComponentInstance = {

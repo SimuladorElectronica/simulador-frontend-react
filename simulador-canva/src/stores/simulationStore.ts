@@ -40,7 +40,7 @@ export class SimulationStore {
     private pushLog(text: string) {
         const entry: SimLogEntry = { timeUs: this.snapshot.virtualTimeUs, text };
         const log = [...this.snapshot.log.slice(-199), entry];
-        // eslint-disable-next-line no-console
+         
         console.log(`[sim t=${entry.timeUs}us] ${text}`);
         return log;
     }
@@ -81,7 +81,7 @@ export class SimulationStore {
         if (eventType === 'SERIAL') {
             const entry: SimLogEntry = { timeUs: this.snapshot.virtualTimeUs, text: String(data ?? '') };
             const serial = [...this.snapshot.serial.slice(-99), entry];
-            // eslint-disable-next-line no-console
+             
             console.log(`[serial ${sourceId}] ${entry.text}`);
             this.rebuild({ serial });
             return;
@@ -116,7 +116,7 @@ export class SimulationStore {
 
     public applyHeartbeat(realTimeMs: number) {
         // Solo consola, sin re-render
-        // eslint-disable-next-line no-console
+         
         console.log(`[sim] HEARTBEAT ${realTimeMs}`);
     }
 

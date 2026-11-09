@@ -15,14 +15,14 @@ class SimulationClient {
     private ensureWorker(): Worker | null {
         if (this.worker) return this.worker;
         if (typeof Worker === 'undefined') {
-            // eslint-disable-next-line no-console
+             
             console.warn('[sim] Worker no disponible en este entorno (tests/jsdom)');
             return null;
         }
         const worker = new Worker(new URL('./circuitWorker.ts', import.meta.url), { type: 'module' });
         worker.onmessage = (e: MessageEvent<WorkerEvent>) => this.handleEvent(e.data);
         worker.onerror = (err) => {
-            // eslint-disable-next-line no-console
+             
             console.error('[sim] Worker error:', err);
             simulationStore.applyEvent('WORKER_ERROR', 'client', String(err.message ?? err));
         };
@@ -34,13 +34,13 @@ class SimulationClient {
     private post(cmd: UICommand) {
         const w = this.ensureWorker();
         if (!w) return;
-        // eslint-disable-next-line no-console
+         
         console.log('[sim->worker]', cmd.type, cmd.payload);
         w.postMessage(cmd);
     }
 
     private handleEvent(event: WorkerEvent) {
-        // eslint-disable-next-line no-console
+         
         console.log('[worker->sim]', event.type, event.payload);
         switch (event.type) {
             case 'READY':

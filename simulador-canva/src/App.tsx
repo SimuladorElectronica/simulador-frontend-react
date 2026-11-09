@@ -18,7 +18,7 @@ function App() {
     if (documentStore.hasTopologyChanged()) {
       simulationClient.loadCircuit(documentStore.getSimulationProjection(), ManifestRegistry.getAll())
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [doc])
 
   return (

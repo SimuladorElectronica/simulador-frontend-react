@@ -48,9 +48,9 @@ export interface ComponentManifest {
         params: Record<string, number>;
     }>;
     monitors?: MonitorSpec[];
-    parameters?: Record<string, { type: 'number' | 'enum' | 'boolean'; min?: number; max?: number; default: any }>;
+    parameters?: Record<string, { type: 'number' | 'enum' | 'boolean'; min?: number; max?: number; default: unknown }>;
     observables?: string[];
-    visualRules?: Array<{ observable: string; property: string; mapping: any }>;
+    visualRules?: Array<{ observable: string; property: string; mapping: unknown }>;
     interactions?: Array<{ name: string; gesture: 'click' | 'drag' }>;
     libraries?: string[];
 }

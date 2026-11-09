@@ -152,7 +152,7 @@ export const cppSubsetBackend: LanguageBackend = {
         return instance;
     },
 
-    resume(instance: unknown, _limitTimeUs: number): ExecutionResult {
+    resume(instance: unknown): ExecutionResult {
         const inst = instance as Instance;
         const host = inst.host;
         inst.steps = 0;
@@ -229,7 +229,7 @@ export const cppSubsetBackend: LanguageBackend = {
                 }
             }
             // Expresión binaria simple: a OP b (OP en + - * / %, sin llamadas ni paréntesis anidados salvo un nivel)
-            const bin = /^([\s\S]+?)([+\-*\/%])([\s\S]+)$/.exec(e);
+            const bin = /^([\s\S]+?)([+\-*/%])([\s\S]+)$/.exec(e);
             if (bin && !/\(.*\(/.test(e)) {
                 // Evitar confundir el '-' inicial de un número negativo
                 const a = evalExpr(bin[1]);

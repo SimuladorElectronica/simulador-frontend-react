@@ -3,18 +3,23 @@ import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { LedManifest, Esp32Manifest } from '@core/manifests';
 import type { ComponentManifest } from '@types';
 
-// Stub de `self` para cargar el worker en jsdom/vitest
-const posted: any[] = [];
+// Stub de `self` para cargar el worker en jsdom/vitest.
+// Los mensajes del protocolo se inspeccionan como datos opacos: `Msg` existe
+// solo para no repetir casts en las aserciones de los tests.
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+type Msg = any;
+
+const posted: Msg[] = [];
 /** Instante wall-clock (ms) en que cada mensaje de `posted` se emitió, en el mismo orden. */
 const postedAt: number[] = [];
-let messageHandler: ((e: { data: any }) => void) | null = null;
+let messageHandler: ((e: { data: Msg }) => void) | null = null;
 
 const selfStub = {
-    postMessage: (msg: any) => {
+    postMessage: (msg: Msg) => {
         posted.push(msg);
         postedAt.push(Date.now());
     },
-    addEventListener: (_type: string, handler: (e: { data: any }) => void) => {
+    addEventListener: (_type: string, handler: (e: { data: Msg }) => void) => {
         messageHandler = handler;
     },
 };
@@ -23,7 +28,7 @@ vi.stubGlobal('self', selfStub);
 // Carga el worker (registra su handler de mensajes)
 await import('../worker/circuitWorker');
 
-function send(data: any) {
+function send(data: Msg) {
     messageHandler?.({ data });
 }
 
@@ -93,7 +98,7 @@ void loop() {
         const ledStates = snapshots
             .flatMap((s) => Object.entries(s.payload.changes))
             .filter(([id]) => id === 'led1:d1')
-            .map(([, v]: any) => v?.conducting);
+            .map(([, v]: [string, Msg]) => v?.conducting);
         // Debe haber alternado ON y OFF
         expect(ledStates).toContain(true);
         expect(ledStates).toContain(false);
