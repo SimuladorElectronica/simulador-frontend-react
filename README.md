@@ -1,44 +1,6 @@
-# Perímetro del Proyecto: MVP Simulador ESP32
+<!-- calidad:inicio -->
+![Calidad](https://img.shields.io/badge/Calidad-80%2F100-green) ![Aprobado](https://img.shields.io/badge/Aprobado-NO-red) ![Cumple](https://img.shields.io/badge/Cumple-13%2F14-green) ![Duplicación](https://img.shields.io/badge/Duplicaci%C3%B3n-3.4%25-green) ![SEC](https://img.shields.io/badge/SEC-0-green) ![SQL](https://img.shields.io/badge/SQL-0-green) ![DBG](https://img.shields.io/badge/DBG-0-green) ![Capas](https://img.shields.io/badge/Capas-1-red) ![Tests](https://img.shields.io/badge/Tests-0-red) ![Cob](https://img.shields.io/badge/Cob-n%2Fa-lightgrey) ![Vistas](https://img.shields.io/badge/Vistas-14-green)
 
-## Límites del Sistema
-
-| Dentro del Sistema (In-Scope) | Fuera del Sistema (Out-of-Scope) |
-| :--- | :--- |
-| Simulación exclusiva de **ESP32 DevKit v1** (30 pines). | Otras placas (Arduino UNO, Raspberry Pi, STM32). |
-| Soporte único para **C++ (Arduino Core)**. | Programación por bloques / Scratch o MicroPython. |
-| Catálogo cerrado de **15 componentes esenciales**. | Componentes industriales avanzados o sensores fuera de lista. |
-| Motor de simulación por **API Mocking** en Web Worker. | Emulación de registros Xtensa a bajo nivel (QEMU). |
-| Motor eléctrico con disipación y caída de voltaje. | Simulación de componentes a nivel atómico o térmico continuo. |
-| Gestor manual de **librerías C++ curadas**. | Compilación arbitraria de repositorios externos de GitHub. |
-| Módulo Wi-Fi y Broker MQTT **simulado en pantalla**. | Conexión directa a hardware físico vía WebUSB o WebSerial. |
-| Acceso anónimo e instantáneo mediante URL compartible. | Módulos de pago, pasarelas de cobro o suscripciones. |
-
----
-
-## Alcance del Sistema
-
-### Alcance Funcional
-* **Canvas Interactivo (React):** Lienzo 2D *Drag & Drop* con cables dinámicos, protoboard y componentes con estados visuales activos (LEDs, servomotores, pantallas LCD/OLED).
-* **Editor Monaco:** Edición en C++ con resaltado de sintaxis, autocompletado de funciones de Arduino Core y consola serial interactiva.
-* **Simulador de Física Activa:** Cálculo en tiempo real de potencia disipada (animación de humo/ruptura) y detección de *Brownout Reset* por bajo voltaje.
-* **Gestor de Librerías:** Modal UI para búsqueda e inclusión manual de directivas `#include`.
-* **Dashboard Educativo (Vue):** Panel docente para gestionar plantillas de circuitos, tareas y guías prácticas.
-
-### Alcance No Funcional
-* **Rendimiento:** Ejecución fluida a **60 FPS** en la interfaz gráfica y bucle lógico desacoplado en un hilo secundario (*Web Worker*).
-* **Portabilidad:** Compatibilidad total en navegadores modernos sin necesidad de plugins, apto para Chromebooks y computadoras escolares de bajos recursos.
-* **Escalabilidad:** Arquitectura de componentes desacoplada mediante archivos JSON/JS para permitir futuras expansiones del catálogo.
-
----
-
-## Objetivos Específicos, Métricas y Criterios de Aceptación
-
-* **Velocidad de Carga de la App:** Cargar completamente en **menos de 2 segundos** sobre conexiones de 10 Mbps.
-  * *Bundle Principal (UI/Lienzo):* No debe superar los 3 MB comprimidos en la descarga inicial.
-  * *Parser WASM (Tree-Sitter):* Se carga de forma diferida (lazy loading) únicamente cuando se inicia el editor/simulación. Su tamaño de transferencia en red no debe superar 1 MB comprimido (usando compresión Brotli/Gzip en servidor).
-* **Fluidez del Lienzo:** Mantener una tasa de **60 FPS constantes** con el lienzo completo (15 componentes activos y cableados).
-  * *Criterio de aceptación:* El uso de CPU en el cliente no debe exceder el 30% en un procesador de gama baja de netbook escolar.
-* **Respuesta del Motor Físico:** Disparar efectos visuales por sobrepotencia ($P > P_{\\max}$) en **menos de 100 ms** tras la ocurrencia del evento en el código C++.
-  * *Criterio de aceptación:* Una resistencia sin limitación debe destruirse y cortar el circuito visiblemente antes de los 1.5 segundos de ejecución sustained.
-* **Fricción de Uso en Aula:** Permitir la generación y apertura de un proyecto compartido en **menos de 1 segundo**.
-  * *Criterio de aceptación:* Cualquier usuario que reciba el enlace debe poder visualizar el circuito y ejecutar la simulación sin necesidad de iniciar sesión.
+**Calidad de servicios (heurístico):** índice **80/100** · cumple **13/14** · aprobado **NO** · capas **1**
+Detalle completo en [`docs/EVALUACION.md`](docs/EVALUACION.md).
+<!-- calidad:fin -->
