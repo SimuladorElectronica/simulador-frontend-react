@@ -1,12 +1,13 @@
 import { useSimulation } from './hooks/useSimulation';
 import { simulationClient } from '../worker/simulationClient';
+import { simulationStore } from '../stores/simulationStore';
+import { SerialConsole } from './SerialConsole';
 
 const fmt = (v: unknown) =>
     typeof v === 'number' ? Number(v.toPrecision(4)).toString() : String(v ?? '—');
 
 /**
- * Panel de simulación (MVP): controles de ejecución y resultados en texto.
- * Todo sale de simulationStore (alimentado por el worker vía simulationClient).
+ * Panel de simulación (MVP): controles de ejecución y resultados en texto. Todo sale de simulationStore (alimentado por el worker vía simulationClient).
  */
 export function SimulationPanel() {
     const sim = useSimulation();
@@ -71,22 +72,9 @@ export function SimulationPanel() {
                 </table>
             )}
 
-            <h3 style={{ margin: '14px 0 4px', fontSize: 11 }}>Serie (Serial.println)</h3>
-            <pre
-                style={{
-                    margin: 0,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    maxHeight: 140,
-                    overflowY: 'auto',
-                    color: '#a5d6a7',
-                    background: '#1b262c',
-                    padding: 6,
-                    borderRadius: 4,
-                }}
-            >
-                {sim.serial.map((l) => `[${l.timeUs}us] ${l.text}`).join('\n') || '(sin salida)'}
-            </pre>
+            <div style={{ marginTop: 14 }}>
+                <SerialConsole entries={sim.serial} onClear={() => simulationStore.clearSerial()} />
+            </div>
 
             <h3 style={{ margin: '14px 0 4px', fontSize: 11 }}>Log (también en consola)</h3>
             <pre

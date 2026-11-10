@@ -16,6 +16,14 @@ describe('SimulationStore: monitor serie', () => {
         expect(store.getSnapshot().serial.map((e) => e.text)).toEqual(['1']);
     });
 
+    it('clearSerial vacía el monitor serie (botón Limpiar de la consola UART)', () => {
+        const store = new SimulationStore();
+        store.applyEvent('SERIAL', 'esp', 'linea');
+        expect(store.getSnapshot().serial).toHaveLength(1);
+        store.clearSerial();
+        expect(store.getSnapshot().serial).toEqual([]);
+    });
+
     it('un snapshot "full" reemplaza los estados: desaparecen los elementos del componente eliminado', () => {
         const store = new SimulationStore();
 

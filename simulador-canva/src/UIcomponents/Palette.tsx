@@ -7,10 +7,10 @@ export const PALETTE_DND_MIME = 'application/x-sim-component';
 
 const styles: Record<string, React.CSSProperties> = {
     sidebar: {
-        width: 230,
-        flexShrink: 0,
+        width: '100%',
+        flex: 1,
+        minHeight: 0,
         background: '#fafafa',
-        borderRight: '1px solid #cfd8dc',
         overflowY: 'auto',
         padding: 12,
         boxSizing: 'border-box',
