@@ -1,5 +1,6 @@
 import type { Netlist, SolverSolution } from '@types';
-import type { GpioStates } from '../runtime/gpioState';
+import type { GpioStatesInput } from '../runtime/gpioState';
+import { findGpioState } from '../runtime/gpioState';
 import { ESP32_PROFILE } from '../runtime/esp32Profile';
 
 /* ------------------------------------------------------------------ */
@@ -92,22 +93,26 @@ interface MNASystem {
     b: number[];
     nodeIndex: Map<string, number>;
     vsIndex: Map<string, number>;
-    referenceNetId: string | null;
+    /**
+     * Nets que son referencia 0 V. Hay uno por cada `groundRef` del netlist:
+     * así dos placas sin cable de tierra común no dejan la segunda flotando
+     * (matriz singular). Todas las tierras de la simulación son el mismo 0 V.
+     */
+    referenceNets: Set<string>;
 }
 
 function buildMNA(
     netlist: Netlist,
     previousVoltages: Record<string, number>,
-    gpioStates?: GpioStates,
+    gpioStates?: GpioStatesInput,
 ): MNASystem {
     const nodeIndex = new Map<string, number>();
     const vsIndex = new Map<string, number>();
 
-    let referenceNetId: string | null = null;
+    const referenceNets = new Set<string>();
     for (const elem of netlist.elements) {
         if (elem.primitive === 'groundRef' && elem.terminals.pin) {
-            referenceNetId = elem.terminals.pin ?? null;
-            break;
+            referenceNets.add(elem.terminals.pin);
         }
     }
 
@@ -115,7 +120,7 @@ function buildMNA(
     const connectedNets = new Set<string>();
     for (const elem of netlist.elements) {
         for (const netId of Object.values(elem.terminals) as string[]) {
-            if (netId && netId !== referenceNetId) {
+            if (netId && !referenceNets.has(netId)) {
                 connectedNets.add(netId);
             }
         }
@@ -123,14 +128,29 @@ function buildMNA(
 
     let nodeCount = 0;
     for (const net of netlist.nets) {
-        if (net.id !== referenceNetId && connectedNets.has(net.id)) {
+        if (!referenceNets.has(net.id) && connectedNets.has(net.id)) {
             nodeIndex.set(net.id, nodeCount++);
         }
     }
 
+    // Fuentes ideales duplicadas: dos placas conectadas al mismo riel (mismos
+    // nets y misma tensión) imponen exactamente la misma ecuación. En MNA eso
+    // deja filas redundantes (matriz singular) aunque el circuito sea válido.
+    // Se estampa una sola; la corriente entre fuentes ideales idénticas es
+    // indeterminada, así que repartirla no aporta nada al resultado.
+    const activeVoltageSources = new Set<string>();
+    const sourceRails = new Set<string>();
+    for (const elem of netlist.elements) {
+        if (elem.primitive !== 'voltageSource' || isDestroyed(elem)) continue;
+        const railKey = `${elem.terminals.positive ?? ''}|${elem.terminals.negative ?? ''}|${elem.params.voltage ?? 0}`;
+        if (sourceRails.has(railKey)) continue;
+        sourceRails.add(railKey);
+        activeVoltageSources.add(elem.id);
+    }
+
     let vsCount = 0;
     for (const elem of netlist.elements) {
-        if (elem.primitive === 'voltageSource' && !isDestroyed(elem)) {
+        if (activeVoltageSources.has(elem.id)) {
             vsIndex.set(elem.id, nodeCount + vsCount++);
         }
     }
@@ -140,7 +160,7 @@ function buildMNA(
     const b: number[] = Array(n).fill(0);
 
     const getNodeIndex = (netId: string): number | null => {
-        if (!netId || netId === referenceNetId) return null;
+        if (!netId || referenceNets.has(netId)) return null;
         return nodeIndex.get(netId) ?? null;
     };
 
@@ -166,6 +186,8 @@ function buildMNA(
 
     for (const elem of netlist.elements) {
         if (isDestroyed(elem)) continue; // circuito abierto: no se estampa en la MNA
+        // Fuente ideal duplicada en el mismo riel: ya se estampó la primera.
+        if (elem.primitive === 'voltageSource' && !activeVoltageSources.has(elem.id)) continue;
         const t = elem.terminals;
         const p = elem.params;
 
@@ -185,7 +207,6 @@ function buildMNA(
 
             case 'voltageSource': {
                 const v = p.voltage ?? 0;
-                const rout = p.outputResistance ?? 0;
                 const pos = getNodeIndex(t.positive ?? '');
                 const neg = getNodeIndex(t.negative ?? '');
                 const vsIdx = vsIndex.get(elem.id);
@@ -203,7 +224,6 @@ function buildMNA(
                 // sería incorrecto (actuaría como carga: V/Rout = 33A perdidos).
                 // Como Rout es típicamente pequeña (0.1Ω), se aproxima la fuente
                 // como ideal; Rout se conserva en params para futuros modelos serie.
-                void rout;
                 break;
             }
 
@@ -240,7 +260,10 @@ function buildMNA(
                 const pullDown = p.pullDownResistance ?? ESP32_PROFILE.pullDownResistance;
                 const rout = p.outputResistance ?? ESP32_PROFILE.outputResistance;
                 const gpioNumber = p.gpioNumber;
-                const st = gpioNumber !== undefined ? gpioStates?.get(gpioNumber) : undefined;
+                const st =
+                    gpioNumber !== undefined
+                        ? findGpioState(gpioStates, elem.componentId, gpioNumber)
+                        : undefined;
 
                 if (st && st.mode === 'output') {
                     // Driver push-pull: fuente Thevenin Vout con resistencia serie Rout
@@ -305,13 +328,13 @@ function buildMNA(
         }
     }
 
-    return { n, A, b, nodeIndex, vsIndex, referenceNetId };
+    return { n, A, b, nodeIndex, vsIndex, referenceNets };
 }
 
 function netVoltagesToMap(x: number[], mna: MNASystem): Record<string, number> {
     const voltages: Record<string, number> = {};
-    if (mna.referenceNetId) {
-        voltages[mna.referenceNetId] = 0;
+    for (const netId of mna.referenceNets) {
+        voltages[netId] = 0;
     }
     for (const [netId, idx] of mna.nodeIndex) {
         voltages[netId] = x[idx];
@@ -328,7 +351,7 @@ function getVoltage(nodeVoltages: Record<string, number>, netId: string | undefi
  * Ejecuta el análisis nodal con Newton-Raphson.
  * Devuelve una SolverSolution estrictamente tipada.
  */
-export function solve(netlist: Netlist, gpioStates?: GpioStates): SolverSolution {
+export function solve(netlist: Netlist, gpioStates?: GpioStatesInput): SolverSolution {
     const diagnostics: SolverSolution['diagnostics'] = [];
     const elementResults: SolverSolution['elementResults'] = {};
 

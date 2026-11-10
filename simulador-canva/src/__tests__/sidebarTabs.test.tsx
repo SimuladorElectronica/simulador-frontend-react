@@ -4,6 +4,12 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { documentStore } from '../stores/documentStore';
+import { programEditorStore } from '../stores/programEditorStore';
+import { sidebarStore } from '../stores/sidebarStore';
+
+// Seleccionar un MCU abre el editor (lazy). Mock para no descargar Monaco.
+vi.mock('@monaco-editor/react', () => ({ default: () => null }));
+
 import { Sidebar } from '../UIcomponents/Sidebar';
 
 describe('Sidebar: pestañas Código / Componentes', () => {
@@ -14,6 +20,9 @@ describe('Sidebar: pestañas Código / Componentes', () => {
     ManifestRegistry.init();
     documentStore.getDocument().components.length = 0;
     documentStore.getDocument().wires.length = 0;
+    documentStore.getDocument().programs.length = 0;
+    programEditorStore.reset();
+    sidebarStore.setTab('code');
     (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -54,6 +63,27 @@ describe('Sidebar: pestañas Código / Componentes', () => {
     expect(panel('components').style.display).toBe('flex');
     expect(panel('code').style.display).toBe('none');
     expect(container.textContent).toContain('Arrastra al lienzo');
+
+    await act(async () => root.unmount());
+  });
+
+  it('seleccionar un ESP32 en el canvas abre la pestaña Código', async () => {
+    const esp = documentStore.addComponent('core/esp32@1', { x: 0, y: 0 });
+    await act(async () => {
+      root.render(<Sidebar onAddComponent={() => {}} />);
+    });
+    // Nos vamos a Componentes...
+    await act(async () => {
+      tab('Componentes').click();
+    });
+    expect(panel('code').style.display).toBe('none');
+
+    // ...y al seleccionar el ESP32 vuelve a Código
+    await act(async () => {
+      programEditorStore.selectMcu(esp.id);
+    });
+    expect(panel('code').style.display).toBe('flex');
+    expect(panel('components').style.display).toBe('none');
 
     await act(async () => root.unmount());
   });

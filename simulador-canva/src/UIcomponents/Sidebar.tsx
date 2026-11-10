@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useSidebarTab } from './hooks/useSidebarTab';
+import { sidebarStore } from '../stores/sidebarStore';
+import type { SidebarTab } from '../stores/sidebarStore';
 import { ProgramEditor } from './ProgramEditor';
 import { Palette } from './Palette';
 
-export type SidebarTab = 'code' | 'components';
+export type { SidebarTab };
 
 interface SidebarProps {
     /** Doble clic en un componente de la paleta: el canvas lo coloca en el centro */
@@ -52,7 +54,10 @@ function TabButton({ id, label, active, onSelect }: TabButtonProps) {
  * cambiar de pestaña.
  */
 export function Sidebar({ onAddComponent }: SidebarProps) {
-    const [tab, setTab] = useState<SidebarTab>('code');
+    // La pestaña vive en un store: el canvas puede forzar "Código" al
+    // seleccionar un ESP32 desde su handler de selección.
+    const tab = useSidebarTab();
+    const setTab = (next: SidebarTab) => sidebarStore.setTab(next);
 
     return (
         <aside

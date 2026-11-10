@@ -395,3 +395,79 @@ void loop() {
         expect(statuses[statuses.length - 1].payload.state).toBe('paused');
     }, 10000);
 });
+
+describe('circuitWorker: varios MCU en simultáneo', () => {
+    beforeEach(() => {
+        posted.length = 0;
+        postedAt.length = 0;
+        ManifestRegistry.init();
+    });
+
+    it('dos ESP32 con delays distintos convergen y el reloj sigue avanzando', async () => {
+        // Placas independientes (cada una con su LED y su tierra): es el caso
+        // que antes dejaba flotando la segunda placa y frenaba la simulación.
+        const projection = {
+            components: [
+                { id: 'esp1', type: 'core/esp32@1', params: {} },
+                { id: 'led1', type: 'core/led@1', params: {} },
+                { id: 'esp2', type: 'core/esp32@1', params: {} },
+                { id: 'led2', type: 'core/led@1', params: {} },
+            ],
+            wires: [
+                { id: 'w1', from: { componentId: 'esp1', pinId: 'gpio2' }, to: { componentId: 'led1', pinId: 'anode' } },
+                { id: 'w2', from: { componentId: 'led1', pinId: 'cathode' }, to: { componentId: 'esp1', pinId: 'gnd1' } },
+                { id: 'w3', from: { componentId: 'esp2', pinId: 'gpio2' }, to: { componentId: 'led2', pinId: 'anode' } },
+                { id: 'w4', from: { componentId: 'led2', pinId: 'cathode' }, to: { componentId: 'esp2', pinId: 'gnd1' } },
+            ],
+            programs: [
+                {
+                    mcuComponentId: 'esp1',
+                    language: 'cpp-subset',
+                    languageVersion: '1.0.0',
+                    source: `
+void setup() { pinMode(2, OUTPUT); }
+void loop() { digitalWrite(2, HIGH); delay(500); digitalWrite(2, LOW); delay(500); }
+`,
+                },
+                {
+                    mcuComponentId: 'esp2',
+                    language: 'cpp-subset',
+                    languageVersion: '1.0.0',
+                    source: `
+void setup() { pinMode(2, OUTPUT); }
+void loop() { digitalWrite(2, HIGH); delay(1000); digitalWrite(2, LOW); delay(1000); }
+`,
+                },
+            ],
+        };
+
+        send({ type: 'HELLO', payload: { version: '1.0.0' }, requestId: '1' });
+        send({ type: 'LOAD_CIRCUIT', payload: { projection, manifests: [Esp32Manifest, LedManifest] } });
+        send({ type: 'CONTROL', payload: { action: 'START', stepUs: 10000 } });
+
+        await sleep(1600);
+
+        const statuses = eventsOfType('STATUS');
+        expect(statuses[statuses.length - 1].payload.state).toBe('running');
+
+        const snaps = eventsOfType('SNAPSHOT');
+        expect(snaps[snaps.length - 1].payload.virtualTimeUs).toBeGreaterThan(500_000);
+
+        const solverResults = eventsOfType('EVENT').filter((e) => e.payload.eventType === 'SOLVER_RESULT');
+        expect(solverResults.length).toBeGreaterThan(0);
+        expect(solverResults[solverResults.length - 1].payload.data.converged).toBe(true);
+        expect(
+            solverResults.some((e) => Array.isArray(e.payload.data.diagnostics) && e.payload.data.diagnostics.length > 0),
+        ).toBe(false);
+
+        // Las dos placas ejecutan su sketch y la UI ve ambos LEDs
+        const ledStates = eventsOfType('SNAPSHOT')
+            .flatMap((s) => Object.entries(s.payload.changes))
+            .filter(([id]) => id === 'led1:d1' || id === 'led2:d1')
+            .map(([id, v]: [string, Msg]) => ({ id, conducting: (v as { conducting?: boolean })?.conducting }));
+        expect(ledStates.some((s) => s.id === 'led1:d1' && s.conducting === true)).toBe(true);
+        expect(ledStates.some((s) => s.id === 'led2:d1' && s.conducting === true)).toBe(true);
+
+        send({ type: 'CONTROL', payload: { action: 'PAUSE' } });
+    }, 10000);
+});

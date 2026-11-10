@@ -1,9 +1,14 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { useDocument } from './hooks/useDocument';
+import { useProgramEditor } from './hooks/useProgramEditor';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
+import { DEFAULT_SKETCH } from '../core/editor/defaultSketch';
+import { programEditorStore } from '../stores/programEditorStore';
 import { documentStore } from '../stores/documentStore';
 import { simulationClient } from '../worker/simulationClient';
 import { cppSubsetBackend } from '../core/runtime/cppSubsetBackend';
+
+export { DEFAULT_SKETCH };
 
 /**
  * Carga diferida: el import dinámico NO se dispara hasta que este
@@ -12,38 +17,45 @@ import { cppSubsetBackend } from '../core/runtime/cppSubsetBackend';
  */
 const LazyCodeEditor = lazy(() => import('./CodeEditor'));
 
-export const DEFAULT_SKETCH = `const int LED_PIN = 2;
-
-void setup() {
-  pinMode(LED_PIN, OUTPUT);
-  Serial.begin(115200);
-  Serial.println("ESP32 listo");
-}
-
-void loop() {
-  digitalWrite(LED_PIN, HIGH);
-  Serial.println("LED ON");
-  delay(500);
-  digitalWrite(LED_PIN, LOW);
-  Serial.println("LED OFF");
-  delay(500);
-}`;
+const isMcuType = (type: string) => !!ManifestRegistry.get(type)?.mcu;
 
 /**
  * Editor de programa Arduino.
  *
  * - Colapsado por defecto: Monaco NO se descarga hasta que el usuario
- *   pulsa "Abrir editor" (carga diferida, ver `LazyCodeEditor`).
+ *   pulsa "Abrir editor" o selecciona un ESP32 (carga diferida, ver
+ *   `LazyCodeEditor`).
+ * - Es siempre el mismo editor: al seleccionar un ESP32 en el canvas se
+ *   carga su sketch; si no tiene, se conserva el buffer y el botón de
+ *   carga apunta a esa placa.
  * - Al abrirse, muestra el editor Monaco con autocompletado Arduino
  *   Core y resaltado C++ exclusivo (lenguaje `cpp`).
  */
 export function ProgramEditor() {
     const doc = useDocument();
-    const [source, setSource] = useState(DEFAULT_SKETCH);
+    const editor = useProgramEditor();
     const [status, setStatus] = useState('');
-    const [editorOpen, setEditorOpen] = useState(false);
 
-    const mcu = doc.components.find((c) => ManifestRegistry.get(c.type)?.mcu);
+    // MCU objetivo: el ESP32 seleccionado en el canvas; si todavía no
+    // hay ninguno elegido, el primero del circuito.
+    const mcu =
+        (editor.targetMcuId
+            ? doc.components.find((c) => c.id === editor.targetMcuId)
+            : undefined) ?? doc.components.find((c) => isMcuType(c.type));
+
+    const mcuManifest = mcu ? ManifestRegistry.get(mcu.type) : undefined;
+    const mcuName = mcu
+        ? `${mcu.label ?? mcuManifest?.displayName ?? 'MCU'} (${mcu.id})`
+        : 'ningún MCU';
+
+    // Sketch guardado del MCU elegido (si hay). El buffer de edición vive
+    // en programEditorStore; si la placa no tiene programa, el buffer no
+    // se toca para poder cargárselo tal cual.
+    const storedSource = mcu
+        ? doc.programs.find((p) => p.mcuComponentId === mcu.id)?.source
+        : undefined;
+
+    const source = editor.source;
 
     // Diagnósticos del subset (sin compilación remota): feedback
     // inmediato en el propio editor.
@@ -61,8 +73,10 @@ export function ProgramEditor() {
         documentStore.setProgram(mcu.id, source);
         // 2) Worker: compilación/arranque inmediato (sin esperar al próximo render)
         simulationClient.setProgram(mcu.id, source);
-        setStatus(`✓ Programa cargado en ${mcu.id} (monitor serie en el panel derecho)`);
+        setStatus(`✓ Programa cargado en ${mcuName} (monitor serie en el panel derecho)`);
     };
+
+    const editorOpen = editor.isOpen;
 
     return (
         <section
@@ -77,11 +91,21 @@ export function ProgramEditor() {
             }}
         >
             <h2 style={{ margin: 0, fontSize: 14, color: '#263238' }}>Programa (Arduino)</h2>
+            <div style={{ fontSize: 11, color: '#546e7a', marginTop: -4 }}>
+                {mcu ? (
+                    <>
+                        MCU seleccionado: <strong>{mcuName}</strong>
+                        {storedSource === undefined ? ' · sin programa guardado' : ''}
+                    </>
+                ) : (
+                    'Sin MCU en el circuito'
+                )}
+            </div>
 
             {!editorOpen ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <button
-                        onClick={() => setEditorOpen(true)}
+                        onClick={() => programEditorStore.open()}
                         style={{ padding: '6px 10px', cursor: 'pointer', fontWeight: 600 }}
                     >
                         Abrir editor de código
@@ -116,7 +140,11 @@ export function ProgramEditor() {
                                 overflow: 'hidden',
                             }}
                         >
-                            <LazyCodeEditor value={source} onChange={setSource} height="100%" />
+                            <LazyCodeEditor
+                                value={source}
+                                onChange={(v) => programEditorStore.setSource(v)}
+                                height="100%"
+                            />
                         </div>
                     </Suspense>
                     {diagnostics.length > 0 && (
@@ -132,7 +160,7 @@ export function ProgramEditor() {
                         </div>
                     )}
                     <button
-                        onClick={() => setEditorOpen(false)}
+                        onClick={() => programEditorStore.close()}
                         style={{ padding: '4px 8px', cursor: 'pointer', alignSelf: 'flex-start' }}
                     >
                         Cerrar editor
@@ -144,7 +172,7 @@ export function ProgramEditor() {
                 onClick={load}
                 style={{ padding: '6px 10px', cursor: 'pointer', fontWeight: 600, flexShrink: 0 }}
             >
-                ⤓ Cargar programa en {mcu ? mcu.id : 'MCU'}
+                ⤓ Cargar programa en {mcuName}
             </button>
             {status && (
                 <div style={{ fontSize: 11, color: '#546e7a', flexShrink: 0 }}>{status}</div>

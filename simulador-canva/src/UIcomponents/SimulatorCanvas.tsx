@@ -4,13 +4,15 @@ import type Konva from 'konva';
 import type { PinReference } from '@types';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { documentStore } from '../stores/documentStore';
+import { selectionStore } from '../stores/selectionStore';
+import type { Selection } from '../stores/selectionStore';
+import { programEditorStore } from '../stores/programEditorStore';
 import { useDocument } from './hooks/useDocument';
+import { useSelection } from './hooks/useSelection';
 import { ComponentNode } from './ComponentNode';
 import { WireGuide, WireNode } from './WireNode';
 import { PALETTE_DND_MIME } from './Palette';
 import { findNearestPin, resolveGuidePath, resolveWirePath } from './utils/pins';
-
-type Selection = { kind: 'component' | 'wire'; id: string } | null;
 
 /** Referencia estable y segura al catálogo (los métodos estáticos no deben perder `this`) */
 const getManifest = (type: string) => ManifestRegistry.get(type);
@@ -33,7 +35,9 @@ export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
 
     const [size, setSize] = useState({ width: 800, height: 600 });
     const [view, setView] = useState({ scale: 1, x: 40, y: 40 });
-    const [selection, setSelection] = useState<Selection>(null);
+    // La selección es compartida con la columna izquierda (editor de código)
+    const selection = useSelection();
+    const setSelection = useCallback((next: Selection) => selectionStore.setSelection(next), []);
     const [wiring, setWiring] = useState<{ from: PinReference; pointer: { x: number; y: number } } | null>(null);
     const [hoverPin, setHoverPin] = useState<PinReference | null>(null);
 
@@ -44,6 +48,22 @@ export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
         viewRef.current = view;
         docRef.current = doc;
     }, [view, doc]);
+
+    /**
+     * Selecciona un componente. Si es un MCU (ESP32), además fija el
+     * destino del editor de código y abre su pestaña para mostrar el
+     * sketch guardado (o el buffer actual si no tiene programa).
+     */
+    const selectComponent = useCallback(
+        (id: string) => {
+            setSelection({ kind: 'component', id });
+            const componentType = docRef.current.components.find((c) => c.id === id)?.type;
+            if (componentType && ManifestRegistry.get(componentType)?.mcu) {
+                programEditorStore.selectMcu(id);
+            }
+        },
+        [setSelection],
+    );
 
     // ----- Tamaño del contenedor -----
     useEffect(() => {
@@ -90,7 +110,7 @@ export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
                 // Tipo sin manifiesto registrado: se ignora silenciosamente
             }
         });
-    }, [registerAddAtCenter]);
+    }, [registerAddAtCenter, setSelection]);
 
     // ----- Selección / borrado con teclado -----
     const deleteSelection = useCallback(() => {
@@ -98,7 +118,7 @@ export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
         if (selection.kind === 'component') documentStore.removeComponent(selection.id);
         else documentStore.removeWire(selection.id);
         setSelection(null);
-    }, [selection]);
+    }, [selection, setSelection]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -116,7 +136,7 @@ export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [deleteSelection]);
+    }, [deleteSelection, setSelection]);
 
     // ----- Zoom con rueda (hacia el cursor) -----
     const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -210,6 +230,8 @@ export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
         };
         try {
             const inst = documentStore.addComponent(type, world);
+            // Solo selecciona el recién soltado; no salta a la pestaña de
+            // código (el usuario puede seguir armando el circuito).
             setSelection({ kind: 'component', id: inst.id });
         } catch {
             // Tipo sin manifiesto registrado: se ignora silenciosamente
@@ -253,7 +275,7 @@ export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
                             selected={selection?.kind === 'component' && selection.id === c.id}
                             wiringFrom={wiring?.from ?? null}
                             hoverPin={hoverPin}
-                            onSelect={(id) => setSelection({ kind: 'component', id })}
+                            onSelect={selectComponent}
                             onStartWiring={startWiring}
                             onPinHover={setHoverPin}
                             onChangePosition={(id, x, y) => documentStore.updateComponentPosition(id, x, y)}

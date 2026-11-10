@@ -8,6 +8,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { documentStore } from '../stores/documentStore';
+import { programEditorStore } from '../stores/programEditorStore';
+import { sidebarStore } from '../stores/sidebarStore';
 
 // Mock de @monaco-editor/react: registra cuántas veces se renderiza
 // el Editor real y con qué lenguaje. Así el test NO descarga Monaco.
@@ -45,6 +47,8 @@ describe('ProgramEditor: carga diferida de Monaco', () => {
     documentStore.getDocument().components.length = 0;
     documentStore.getDocument().wires.length = 0;
     documentStore.getDocument().programs.length = 0;
+    programEditorStore.reset();
+    sidebarStore.setTab('code');
     (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement('div');
     document.body.appendChild(container);
