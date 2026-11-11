@@ -8,6 +8,8 @@ export interface Netlist {
     primitive: ElectricalPrimitiveType;
     params: Record<string, number>;
     terminals: Record<string, string>; // rol -> netId
+    /** Componente que declara el elemento (lo usa el solver para los GPIO por MCU) */
+    componentId?: string;
   }>;
 }
 

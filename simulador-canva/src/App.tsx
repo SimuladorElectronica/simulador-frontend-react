@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Palette } from './UIcomponents/Palette'
-import { ProgramEditor } from './UIcomponents/ProgramEditor'
+import { Sidebar } from './UIcomponents/Sidebar'
 import { SimulatorCanvas } from './UIcomponents/SimulatorCanvas'
 import { SimulationPanel } from './UIcomponents/SimulationPanel'
 import { useDocument } from './UIcomponents/hooks/useDocument'
@@ -31,12 +30,7 @@ function App() {
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <ProgramEditor />
-        <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-          <Palette onAdd={(type) => addAtCenterRef.current(type)} />
-        </div>
-      </div>
+      <Sidebar onAddComponent={(type) => addAtCenterRef.current(type)} />
       <SimulatorCanvas
         registerAddAtCenter={(fn) => {
           addAtCenterRef.current = fn

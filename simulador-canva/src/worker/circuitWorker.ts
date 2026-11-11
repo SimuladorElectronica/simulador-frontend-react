@@ -3,7 +3,8 @@ import type { UICommand, WorkerEvent } from '@types';
 import type { Netlist, SolverSolution } from '@types';
 import type { SimulationProjection } from '@types';
 import type { ComponentManifest } from '@types';
-import type { GpioStates } from '@core/runtime/gpioState';
+import type { GpioStateIndex } from '@core/runtime/gpioState';
+import { addGpioStates } from '@core/runtime/gpioState';
 import { ArduinoCore } from '@core/runtime/arduinoCore';
 import { cppSubsetBackend } from '@core/runtime/cppSubsetBackend';
 import { buildNetlist, solve, evaluateMonitors, createMonitorStates } from '@core/solver';
@@ -297,16 +298,19 @@ function runMcuSketches(): void {
     }
 }
 
-/** Estados GPIO de todos los MCU (un solo mapa para el solver). */
-function collectGpioStates(): GpioStates | undefined {
+/**
+ * Estados GPIO de todos los MCU, indexados por `componentId:gpio`.
+ *
+ * La clave lleva el componente a propósito: dos ESP32 con el mismo GPIO
+ * (el 2 del sketch por defecto) deben conservar cada uno su propio estado.
+ */
+function collectGpioStates(): GpioStateIndex | undefined {
     if (mcuRuntimes.size === 0) return undefined;
-    const merged: GpioStates = new Map();
+    const index: GpioStateIndex = new Map();
     for (const rt of mcuRuntimes.values()) {
-        for (const [gpio, state] of rt.core.getGpioStates()) {
-            merged.set(gpio, state);
-        }
+        addGpioStates(index, rt.id, rt.core.getGpioStates());
     }
-    return merged;
+    return index;
 }
 
 /** Devuelve al core el voltaje observado por el solver en cada pad. */

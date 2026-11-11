@@ -120,6 +120,11 @@ export class SimulationStore {
         console.log(`[sim] HEARTBEAT ${realTimeMs}`);
     }
 
+    /** Vacía el monitor serie (botón "Limpiar" de la consola UART). */
+    public clearSerial() {
+        this.rebuild({ serial: [] });
+    }
+
     public getSnapshot(): SimulationSnapshot {
         return this.snapshot;
     }

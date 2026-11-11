@@ -156,6 +156,7 @@ export function buildNetlist(
                 primitive: elem.primitive,
                 params: { ...elem.params, ...numericParams },
                 terminals,
+                componentId: comp.id,
             });
         }
     }
