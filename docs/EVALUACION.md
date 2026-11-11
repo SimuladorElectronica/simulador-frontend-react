@@ -10,12 +10,12 @@
 | Aspecto | Resultado |
 |---|---|
 | Tipo de proyecto | frontend |
-| Índice de calidad de servicios | **44/100** (mínimo 50) |
-| Criterios cumplidos | **8/14** |
+| Índice de calidad de servicios | **39/100** (mínimo 50) |
+| Criterios cumplidos | **9/14** |
 | Aprobado (semáforo) | **NO** |
-| Código (LOC) | 3,729 |
-| Archivos de código | 36 |
-| Tests (archivos) | 14 |
+| Código (LOC) | 4,746 |
+| Archivos de código | 49 |
+| Tests (archivos) | 21 |
 | Cobertura de líneas | no aplica (frontend sin herramienta de cobertura E2E) |
 | Capas detectadas | estado |
 | Pushes directos a `main` (sin PR) | 0 |
@@ -26,7 +26,7 @@
 
 | Autor | Commits | Código (LOC) | Tests (LOC) | Docs (LOC) | Días activos | % del código |
 |---|---:|---:|---:|---:|---:|---:|
-| IvoGiovarruscio | 14 | 4,174 | 2,198 | 1 | 8 | 100% |
+| IvoGiovarruscio | 16 | 5,278 | 3,036 | 1 | 10 | 100% |
 
 > _El LOC de autoría lo calcula RepoSense sobre el historial y puede diferir del LOC de código del análisis de calidad (que mira solo el estado de `main`)._
 
@@ -48,7 +48,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Un resumen numérico (0-100) que combina todas las señales y métricas del análisis, con topes duros por duplicación.
 - **Por qué importa:** Ordena y prioriza la revisión: un índice bajo indica varias señales que conviene mirar juntas.
-- **Tu resultado:** índice **44/100** _(mínimo 50)_
+- **Tu resultado:** índice **39/100** _(mínimo 50)_
 - **Para investigar la causa:**
     - ¿En qué momento del proyecto se concentraron los problemas (arranque, integración de partes, cierre)?
     - ¿El índice bajó por muchas señales chicas o por una o dos graves?
@@ -58,7 +58,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Porcentaje de bloques de código repetidos (similitud) en el repositorio.
 - **Por qué importa:** Cada copia se mantiene por separado: un arreglo hay que repetirlo y los defectos se multiplican.
-- **Tu resultado:** **1.1%** de duplicación _(máximo 15%)_
+- **Tu resultado:** **0.5%** de duplicación _(máximo 15%)_
 
 ### 3. Secretos hardcodeados (SEC) — OK
 
@@ -92,7 +92,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Mensajes de depuración olvidados (`console.log`, `print`, `debugger`).
 - **Por qué importa:** Generan ruido en los registros, pueden filtrar datos y dan sensación de código sin terminar.
-- **Tu resultado:** **6** mensaje(s) de depuración olvidado(s) _(máximo 0)_
+- **Tu resultado:** **8** mensaje(s) de depuración olvidado(s) _(máximo 0)_
 - **Para investigar la causa:**
     - ¿Fue depuración que quedó al cerrar una tarea, o se usó como registro permanente?
     - ¿Hubo una revisión final antes de cerrar la issue o la entrega?
@@ -108,7 +108,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Componentes de UI muy extensos, que suelen mezclar render, estado y lógica.
 - **Por qué importa:** Son difíciles de leer, probar y reutilizar, y sus cambios tienen efectos inesperados.
-- **Tu resultado:** **2** componente(s) demasiado grande(s) _(máximo 1)_
+- **Tu resultado:** **3** componente(s) demasiado grande(s) _(máximo 1)_
 - **Para investigar la causa:**
     - ¿El componente creció a medida que se agregaban requisitos, sin volver a dividirlo?
     - ¿Mezcla responsabilidades distintas (mostrar, calcular, pedir datos)?
@@ -118,21 +118,17 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Una clase o unidad cuyos métodos y campos no están relacionados entre sí.
 - **Por qué importa:** Una unidad que cambia por motivos distintos es frágil y cuesta entenderla.
-- **Tu resultado:** **2** unidad(es) con baja cohesión _(máximo 0)_
+- **Tu resultado:** **3** unidad(es) con baja cohesión _(máximo 0)_
 - **Para investigar la causa:**
     - ¿La unidad agrupa cosas que en realidad pertenecen a lugares distintos?
     - ¿Cambia por motivos diferentes según la tarea?
     - ¿Se pensó su responsabilidad antes de escribirla, o se fue agregando?
 
-### 11. Complejidad alta (Compl) — A REVISAR
+### 11. Complejidad alta (Compl) — OK
 
 - **Qué mide:** Complejidad ciclomática: cantidad de caminos posibles dentro de una función (condicionales, bucles, casos).
 - **Por qué importa:** Muchos caminos = difícil de seguir y de probar; suelen esconderse casos sin cubrir.
-- **Tu resultado:** **20** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 3729 LOC))_
-- **Para investigar la causa:**
-    - ¿Se agregaron condiciones a medida que aparecían casos nuevos?
-    - ¿Se probaron todos los caminos o solo el caso principal?
-    - ¿Hay reglas de negocio mezcladas con detalles técnicos?
+- **Tu resultado:** **21** bloque(s) de complejidad alta _(máximo 5 por 1000 LOC (tenés 4746 LOC))_
 
 ### 12. Funciones/métodos largos o con muchos parámetros (Tam) — OK
 
@@ -150,7 +146,7 @@ Cada aspecto indica **qué mide**, **por qué importa** y **tu resultado**. Cuan
 
 - **Qué mide:** Cantidad de vistas/componentes de pantalla del frontend.
 - **Por qué importa:** El frontend se mide por pantallas: pocas vistas sugiere poca cobertura de la interfaz pedida.
-- **Tu resultado:** **8** vista(s)/componente(s) _(mínimo 6)_
+- **Tu resultado:** **11** vista(s)/componente(s) _(mínimo 6)_
 
 ## 5. Observaciones y qué falta
 
@@ -158,22 +154,21 @@ Criterios que hoy están en rojo y, para cada uno, una explicación breve de **c
 
 | Criterio | Resultado actual | Meta | Brecha | Cómo alcanzarlo |
 |---|---|---|---|---|
-| Índice de calidad de servicios (indice) | índice **44/100** | mínimo 50 | faltan 6 pts | El índice sólo penaliza lo que **excede** los umbrales de cada criterio: si tenés todo en verde, el índice es 100. Si está en rojo, mirá la columna **Brecha** y los criterios en rojo; corregí primero duplicación, SEC, SQL y capas. Meta del perfil exigente: ≥50. |
+| Índice de calidad de servicios (indice) | índice **39/100** | mínimo 50 | faltan 11 pts | El índice sólo penaliza lo que **excede** los umbrales de cada criterio: si tenés todo en verde, el índice es 100. Si está en rojo, mirá la columna **Brecha** y los criterios en rojo; corregí primero duplicación, SEC, SQL y capas. Meta del perfil exigente: ≥50. |
 | Separación en capas (capas) | **1** capa(s) detectada(s): estado | mínimo 2 capas (a partir de 150 LOC) | hoy 1; el mínimo es 2 | Separá el código en al menos 2 capas con responsabilidades claras: presentación (`routes/`, `controllers/`), lógica (`services/`, `domain/`) y datos (`models/`, `repositories/`). Mové cada archivo a la capa que le corresponde en vez de dejar todo en la raíz. |
-| Depuración olvidada (DBG) | **6** mensaje(s) de depuración olvidado(s) | máximo 0 | 6 caso(s) a eliminar | Borrá `console.log`/`print`/`debugger` del código de producción. Si necesitás registro, usá el logger del proyecto con el nivel adecuado. Meta: 0 casos. |
-| Componente demasiado grande (BigC) | **2** componente(s) demasiado grande(s) | máximo 1 | 1 componente(s) de más | Dividí el componente por responsabilidad en subcomponentes (render, estado, acceso a datos) y dejá el original sólo como orquestador. Meta: ≤1 componente grande. |
-| Baja cohesión (Coh) | **2** unidad(es) con baja cohesión | máximo 0 | 2 clase(s) a separar | Separá la clase en unidades con una sola responsabilidad: si los métodos cambian por motivos distintos, son clases distintas. Meta: 0 clases con baja cohesión. |
-| Complejidad alta (Compl) | **20** bloque(s) de complejidad alta | máximo 5 por 1000 LOC (tenés 3729 LOC) | 20 hallazgo(s); el máximo para 3,729 LOC es 18.6 | Extraé condiciones y ramas a funciones con nombre propio, usá retornos tempranos y evitá anidar `if`/`switch`. Meta: ≤5 bloques por 1000 LOC. |
+| Depuración olvidada (DBG) | **8** mensaje(s) de depuración olvidado(s) | máximo 0 | 8 caso(s) a eliminar | Borrá `console.log`/`print`/`debugger` del código de producción. Si necesitás registro, usá el logger del proyecto con el nivel adecuado. Meta: 0 casos. |
+| Componente demasiado grande (BigC) | **3** componente(s) demasiado grande(s) | máximo 1 | 2 componente(s) de más | Dividí el componente por responsabilidad en subcomponentes (render, estado, acceso a datos) y dejá el original sólo como orquestador. Meta: ≤1 componente grande. |
+| Baja cohesión (Coh) | **3** unidad(es) con baja cohesión | máximo 0 | 3 clase(s) a separar | Separá la clase en unidades con una sola responsabilidad: si los métodos cambian por motivos distintos, son clases distintas. Meta: 0 clases con baja cohesión. |
 
 > Empezá por las señales de seguridad (**SEC**, **SQL**) y por la **duplicación**: son las que más pesan en el índice y las más rápidas de verificar a ojo. Después de corregir, volvé a correr la medición: el semáforo se recalcula sobre `main`.
 
 ## 6. Actividad en clase (miércoles y viernes)
 
-> Se consideran las **23 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
+> Se consideran las **26 clases** del período (miércoles y viernes, según `config/constancia.json`; feriados y semanas sin clase descontados). `Commits` = commits de trabajo (no-merge); `Merges` = merges de PR (también son push). Los días sin actividad dicen **sin actividad**.
 
 ### IvoGiovarruscio
 
-**10/23 clases con actividad** · 18 commits · 6 merges
+**12/26 clases con actividad** · 20 commits · 8 merges
 
 | Fecha | Actividad | Repositorios | Commits / merges |
 |---|:--:|---|--:|
@@ -200,6 +195,9 @@ Criterios que hoy están en rojo y, para cada uno, una explicación breve de **c
 | 2026-10-23 | No | sin actividad | 0 / 0 |
 | 2026-10-28 | **Sí** | backend-core-nestjs, simulador-frontend-react | 2 / 0 |
 | 2026-10-30 | No | sin actividad | 0 / 0 |
+| 2026-11-04 | No | sin actividad | 0 / 0 |
+| 2026-11-06 | **Sí** | simulador-frontend-react | 2 / 0 |
+| 2026-11-11 | **Sí** | dashboard-frontend-vue, simulador-frontend-react | 0 / 2 |
 
 ## 7. Anexo: dónde mirar
 
@@ -208,29 +206,21 @@ Archivos donde el análisis encontró cada señal en rojo (sin número de línea
 **Separación en capas (capas)** — 1 archivo(s):
 - `-`
 
-**Depuración olvidada (DBG)** — 3 archivo(s):
+**Depuración olvidada (DBG)** — 4 archivo(s):
+- `simulador-canva/src/core/editor/arduinoCompletions.ts`
 - `simulador-canva/src/core/runtime/cppSubsetBackend.ts`
 - `simulador-canva/src/stores/simulationStore.ts`
 - `simulador-canva/src/worker/simulationClient.ts`
 
-**Componente demasiado grande (BigC)** — 2 archivo(s):
+**Componente demasiado grande (BigC)** — 3 archivo(s):
 - `simulador-canva/src/UIcomponents/ComponentNode.tsx`
+- `simulador-canva/src/UIcomponents/ProgramEditor.tsx`
 - `simulador-canva/src/UIcomponents/SimulatorCanvas.tsx`
 
-**Baja cohesión (Coh)** — 2 archivo(s):
+**Baja cohesión (Coh)** — 3 archivo(s):
 - `simulador-canva/src/core/runtime/arduinoCore.ts`
-- `simulador-canva/src/stores/documentStore.ts`
-
-**Complejidad alta (Compl)** — 9 archivo(s):
-- `simulador-canva/src/core/registry/manifestRegistry.ts`
-- `simulador-canva/src/core/runtime/arduinoCore.ts`
-- `simulador-canva/src/core/runtime/cppSubsetBackend.ts`
-- `simulador-canva/src/core/solver/electricalSolver.ts`
-- `simulador-canva/src/core/solver/monitors.ts`
 - `simulador-canva/src/stores/documentStore.ts`
 - `simulador-canva/src/stores/simulationStore.ts`
-- `simulador-canva/src/worker/circuitWorker.ts`
-- `simulador-canva/src/worker/simulationClient.ts`
 
 ---
 _Informe generado por la cátedra. Los umbrales corresponden al perfil `exigente`. Ante dudas, revisá el archivo señalado y el criterio en `CRITERIOS-CALIDAD.md`._
