@@ -9,6 +9,8 @@ import { ArduinoCore } from '@core/runtime/arduinoCore';
 import { cppSubsetBackend } from '@core/runtime/cppSubsetBackend';
 import { buildNetlist, solve, evaluateMonitors, createMonitorStates } from '@core/solver';
 import type { MonitorEvent, MonitorStates } from '@core/solver';
+import { deriveComponentStates } from '@core/runtime/componentStates';
+import { applyBehaviors, setComponentInput } from '@core/runtime/componentBehavior';
 
 /* ======================================================================== */
 /*  Worker de simulación de circuitos                                       */
@@ -37,8 +39,17 @@ let netlist: Netlist | null = null;
 let solution: SolverSolution | null = null;
 
 /** Última proyección/manifiestos cargados: los consumen los monitores de daño */
-let loadedComponents: Array<{ id: string; type: string }> = [];
+let loadedComponents: Array<{ id: string; type: string; params: Record<string, unknown> }> = [];
 let loadedManifests: ComponentManifest[] = [];
+
+/**
+ * Entradas enviadas por la UI con `INTERACT` (sliders ambientales, posición
+ * del potenciómetro, pulsador…). Viven en el worker y SOBREVIVEN a un
+ * LOAD_CIRCUIT: no son estado de simulación, son la condición que el usuario
+ * está fijando (la iluminación de una LDR no debe volver a 60 % porque se
+ * añadió un cable). Se depuran los componentes que ya no existen.
+ */
+const componentInputs = new Map<string, Record<string, unknown>>();
 
 /**
  * Estado acumulado de los monitores (`COMPONENT_BURNED`, `BROWNOUT_RESET`, …).
@@ -102,6 +113,27 @@ function sendStatus(): void {
 const SNAPSHOT_KEEPALIVE_US = 250_000;
 let lastDeltaSentUs = 0;
 
+/**
+ * Redondea a 6 cifras significativas. El ruido de coma flotante del solver
+ * haría que cada tick pareciera un cambio y se disparara un delta de snapshot
+ * por tick; con esto, un circuito estable deja de emitir.
+ */
+function roundSig(value: number): number {
+    if (!Number.isFinite(value)) return value;
+    return Number(value.toPrecision(6));
+}
+
+function roundDeep(value: unknown): unknown {
+    if (typeof value === 'number') return roundSig(value);
+    if (Array.isArray(value)) return value.map(roundDeep);
+    if (value && typeof value === 'object') {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(value)) out[k] = roundDeep(v);
+        return out;
+    }
+    return value;
+}
+
 function sendSnapshot(type: 'full' | 'delta'): void {
     const changes: Record<string, Record<string, unknown>> = {};
 
@@ -109,9 +141,9 @@ function sendSnapshot(type: 'full' | 'delta'): void {
         for (const [elementId, result] of Object.entries(solution.elementResults)) {
             const prev = lastSentState[elementId] ?? {};
             const current: Record<string, unknown> = {
-                voltage: result.voltage,
-                current: result.current,
-                power: result.power,
+                voltage: roundSig(result.voltage),
+                current: roundSig(result.current),
+                power: roundSig(result.power),
             };
             if (result.conducting !== undefined) {
                 current.conducting = result.conducting;
@@ -124,6 +156,25 @@ function sendSnapshot(type: 'full' | 'delta'): void {
                 changes[elementId] = current;
                 lastSentState[elementId] = current;
             }
+        }
+    }
+
+    // Estados por componente (clave = componentId, SIN ':'): alimentan las
+    // reglas visuales del canvas y el inspector. Los elementos siguen con
+    // clave `componentId:elementId`, así que no colisionan.
+    const componentStates = deriveComponentStates({
+        components: loadedComponents,
+        manifests: loadedManifests,
+        netlist,
+        solution,
+        inputs: componentInputs,
+    });
+    for (const [componentId, rawState] of Object.entries(componentStates)) {
+        const state = roundDeep(rawState) as Record<string, unknown>;
+        const prev = lastSentState[componentId] ?? {};
+        if (type === 'full' || JSON.stringify(prev) !== JSON.stringify(state)) {
+            changes[componentId] = state;
+            lastSentState[componentId] = state;
         }
     }
 
@@ -336,6 +387,15 @@ function solveAndEmit(): void {
 
     solution = solve(netlist, collectGpioStates());
     syncPadVoltages();
+
+    // Comportamientos (p. ej. la bobina del relé cerrando su contacto): si
+    // cambiaron parámetros eléctricos hay que resolver otra vez para que el
+    // snapshot refleje el nuevo estado.
+    if (applyBehaviors(netlist, loadedComponents, loadedManifests, solution)) {
+        solution = solve(netlist, collectGpioStates());
+        syncPadVoltages();
+    }
+
     gpioDirty = false;
 
     sendEvent('SOLVER_RESULT', 'solver', {
@@ -517,8 +577,25 @@ self.addEventListener('message', (event: MessageEvent<UICommand>) => {
                 loadedComponents = proj.components;
                 loadedManifests = list;
 
+                // Las interacciones sobreviven a la recarga (el usuario puede
+                // cambiar el circuito sin perder lo que ya manipuló), pero se
+                // depuran las de componentes que ya no están.
+                const alive = new Set(proj.components.map((c) => c.id));
+                for (const id of [...componentInputs.keys()]) {
+                    if (!alive.has(id)) componentInputs.delete(id);
+                }
+
                 netlist = buildNetlist(proj, list);
                 createMcuRuntimes(proj, list);
+
+                // Re-aplica las interacciones persistidas al netlist recién
+                // construido (si no, un pulsador mantenido o la posición del
+                // wiper se perderían al cambiar cables).
+                for (const [compId, fields] of componentInputs) {
+                    for (const [field, value] of Object.entries(fields)) {
+                        setComponentInput(netlist, compId, field, value);
+                    }
+                }
 
                 // Sketches guardados en el documento (sobreviven a cambios de topología)
                 for (const prog of proj.programs ?? []) {
@@ -638,6 +715,15 @@ self.addEventListener('message', (event: MessageEvent<UICommand>) => {
                 sourceId: componentId,
                 data: { field, value },
             });
+
+            // La entrada vive en el worker: sobrevive a LOAD_CIRCUIT/RESET y se
+            // re-aplica en cada resolución. Solo se re-resuelve si la entrada
+            // toca un parámetro eléctrico (los parámetros no eléctricos solo
+            // cambian el estado observable del componente).
+            const electrical = setComponentInput(netlist, componentId, field, value, componentInputs);
+
+            if (electrical && netlist) solveAndEmit();
+            sendSnapshot('delta');
             break;
         }
 

@@ -61,6 +61,38 @@ function gaussSolve(A: number[][], b: number[]): number[] | null {
 /*  Modelos de componentes no lineales                                */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Resistencia de una LDR según la iluminación declarada (`params.light`, 0-100):
+ * lineal entre la resistencia a oscuras y la plenamente iluminada.
+ * `light` llega al netlist desde el slider del inspector (INTERACT del Worker).
+ */
+export function ldrResistance(params: Record<string, number>): number {
+    const dark = params.resistanceDark ?? 1_000_000;
+    const light = params.resistanceLight ?? 300;
+    const level = Math.min(100, Math.max(0, params.light ?? 50)) / 100;
+    return light + (dark - light) * (1 - level);
+}
+
+/** Posición del wiper del potenciómetro, acotada a [0, 1]. */
+function potPosition(params: Record<string, number>): number {
+    const pos = params.position ?? 0.5;
+    return Math.min(1, Math.max(0, pos));
+}
+
+/** Resistencia efectiva entre dos terminales de un tramo de potenciómetro. */
+function potSegment(resistance: number, fraction: number): number {
+    return Math.max(resistance * fraction, 1e-3);
+}
+
+/**
+ * Conductancia de fuga a tierra (GMIN), igual que en SPICE: cada nodo pierde
+ * 1 pS hacia 0 V. Sin ella, una isla sin referencia (un componente aislado en
+ * el lienzo: p. ej. una LDR sola, cuyos dos pines solo se unen entre sí)
+ * deja la matriz singular y el Worker pasaría a `faulted` sin motivo.
+ * El efecto sobre los resultados es despreciable (< 1e-11 V en los casos típicos).
+ */
+const GMIN = 1e-12;
+
 /** Modelo del LED: I(V) = (V - Vf) / Rs si V > Vf, else ~0. */
 function ledModel(v: number, params: Record<string, number>): { i: number; g: number } {
     const vf = params.forwardVoltage ?? 1.8;
@@ -205,6 +237,16 @@ function buildMNA(
                 break;
             }
 
+            case 'ldr': {
+                // Misma estampa que un resistor, pero su valor depende de la
+                // iluminación que llega desde el slider del inspector.
+                const g = 1 / ldrResistance(p);
+                const p1 = getNodeIndex(t.a ?? '');
+                const p2 = getNodeIndex(t.b ?? '');
+                addConductance(p1, p2, g, 0);
+                break;
+            }
+
             case 'voltageSource': {
                 const v = p.voltage ?? 0;
                 const pos = getNodeIndex(t.positive ?? '');
@@ -318,14 +360,31 @@ function buildMNA(
             }
 
             case 'potentiometer': {
-                const ports = Object.values(t) as string[];
-                const p1 = getNodeIndex(ports[0] ?? '');
-                const p2 = getNodeIndex(ports[1] ?? '');
+                // Tres terminales: a y b son los extremos de la pista y `wiper`
+                // el deslizador (position0..1, llega desde el slider del
+                // inspector). Se estampan las dos ramas del divisor.
                 const r = p.resistance ?? 10000;
-                addConductance(p1, p2, 1 / r, 0);
+                const pos = potPosition(p);
+                const p1 = getNodeIndex(t.a ?? '');
+                const pw = getNodeIndex(t.wiper ?? '');
+                const p2 = getNodeIndex(t.b ?? '');
+                if (t.wiper === undefined) {
+                    // Compatibilidad: manifiestos de dos terminales (sin wiper)
+                    const ports = Object.values(t) as string[];
+                    addConductance(getNodeIndex(ports[0] ?? ''), getNodeIndex(ports[1] ?? ''), 1 / r, 0);
+                    break;
+                }
+                addConductance(p1, pw, 1 / potSegment(r, pos), 0);
+                addConductance(pw, p2, 1 / potSegment(r, 1 - pos), 0);
                 break;
             }
         }
+    }
+
+    // Fuga GMIN a 0 V en cada nodo (ver comentario junto a la constante):
+    // evita que islas sin referencia vuelvan singular la matriz.
+    for (const idx of nodeIndex.values()) {
+        A[idx][idx] += GMIN;
     }
 
     return { n, A, b, nodeIndex, vsIndex, referenceNets };
@@ -424,6 +483,22 @@ export function solve(netlist: Netlist, gpioStates?: GpioStatesInput): SolverSol
                 current = voltage / r;
                 break;
             }
+            case 'ldr': {
+                voltage = getVoltage(nodeVoltages, t.a) - getVoltage(nodeVoltages, t.b);
+                current = voltage / ldrResistance(p);
+                break;
+            }
+            case 'potentiometer': {
+                voltage = getVoltage(nodeVoltages, t.a) - getVoltage(nodeVoltages, t.b);
+                current = voltage / (p.resistance ?? 10000);
+                break;
+            }
+            case 'switch': {
+                const ports = Object.values(t) as string[];
+                voltage = getVoltage(nodeVoltages, ports[0]) - getVoltage(nodeVoltages, ports[1]);
+                current = p.closed ? voltage / (p.onResistance ?? 0.1) : voltage * 1e-9;
+                break;
+            }
             case 'led': {
                 const va = getVoltage(nodeVoltages, t.anode);
                 const vc = getVoltage(nodeVoltages, t.cathode);
@@ -469,6 +544,8 @@ export function solve(netlist: Netlist, gpioStates?: GpioStatesInput): SolverSol
         let conducting: boolean | undefined;
         if (elem.primitive === 'led') {
             conducting = !destroyed && voltage > (p.forwardVoltage ?? 1.8);
+        } else if (elem.primitive === 'switch') {
+            conducting = !destroyed && (p.closed ?? 0) === 1;
         }
 
         elementResults[elem.id] = {

@@ -1,14 +1,49 @@
 import type { ComponentManifest } from '@types';
-import { LedManifest, BreadboardManifest, Esp32Manifest } from '../manifests';
+import {
+    LedManifest,
+    BreadboardManifest,
+    Esp32Manifest,
+    PowerSupplyManifest,
+    ResistorManifest,
+    PushbuttonManifest,
+    PotentiometerManifest,
+    Dht11Manifest,
+    Hcsr04Manifest,
+    LdrManifest,
+    ServoSg90Manifest,
+    RelayManifest,
+    BuzzerManifest,
+    Lcd16x2Manifest,
+    OledSsd1306Manifest,
+} from '../manifests';
+
+/** Catálogo cerrado del MVP: exactamente 15 componentes. */
+export const MVP_CATALOG: ComponentManifest[] = [
+    Esp32Manifest,
+    BreadboardManifest,
+    PowerSupplyManifest,
+    ResistorManifest,
+    LedManifest,
+    PushbuttonManifest,
+    PotentiometerManifest,
+    Dht11Manifest,
+    Hcsr04Manifest,
+    LdrManifest,
+    ServoSg90Manifest,
+    RelayManifest,
+    BuzzerManifest,
+    Lcd16x2Manifest,
+    OledSsd1306Manifest,
+];
 
 export class ManifestRegistry {
     private static catalog = new Map<string, ComponentManifest>();
 
     public static init() {
         this.catalog.clear();
-        this.register(LedManifest);
-        this.register(BreadboardManifest);
-        this.register(Esp32Manifest);
+        for (const manifest of MVP_CATALOG) {
+            this.register(manifest);
+        }
     }
 
     public static register(manifest: ComponentManifest) {

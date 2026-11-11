@@ -33,7 +33,7 @@ export const BreadboardManifest: ComponentManifest = {
   displayName: 'Protoboard 400 Puntos',
   category: 'Infraestructura',
   size: { width: 340, height: 180 },
-  art: `<svg viewBox="0 0 340 180"><rect width="340" height="180" fill="#f8f9fa" rx="8"/></svg>`,
+  art: `<svg xmlns="http://www.w3.org/2000/svg" width="340" height="180" viewBox="0 0 340 180"><rect x="1" y="1" width="338" height="178" fill="#f8f9fa" stroke="#cfd8dc" rx="8"/></svg>`,
   pins,
   internalGroups,
   elements: [], // Sin elementos eléctricos activos

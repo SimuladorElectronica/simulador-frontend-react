@@ -67,6 +67,18 @@ export class DocumentStore {
         }
     }
 
+    /**
+     * Cambia un parámetro configurable de una instancia (inspector del canvas).
+     * Los params forman parte de la proyección: al notificar, App reenvía el
+     * circuito con LOAD_CIRCUIT y el solver usa el valor nuevo.
+     */
+    public updateComponentParam(id: string, key: string, value: number | string | boolean) {
+        const comp = this.document.components.find((c) => c.id === id);
+        if (!comp || comp.params[key] === value) return;
+        comp.params[key] = value;
+        this.notifyUI();
+    }
+
     // Modificación de Topología
     public addComponent(type: string, position: { x: number; y: number }): ComponentInstance {
         const manifest = ManifestRegistry.get(type);
@@ -76,6 +88,16 @@ export class DocumentStore {
         const params: Record<string, number | string | boolean> = {};
         for (const [key, spec] of Object.entries(manifest.parameters ?? {})) {
             params[key] = spec.default as number | string | boolean;
+        }
+
+        // Semilla de las interacciones: el valor inicial (iluminación de la
+        // LDR, posición del wiper, ángulo del servo…) viaja en el documento
+        // para que el lienzo lo muestre aunque el Worker aún no haya publicado
+        // nada. Después manda lo que llegue por INTERACT.
+        for (const interaction of manifest.interactions ?? []) {
+            if (interaction.defaultValue === undefined) continue;
+            if (params[interaction.name] !== undefined) continue;
+            params[interaction.name] = interaction.defaultValue;
         }
 
         const newInst: ComponentInstance = {

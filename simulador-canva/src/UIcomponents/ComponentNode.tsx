@@ -1,8 +1,12 @@
+import { useEffect, useRef } from 'react';
 import { Circle, Group, Image as KonvaImage, Rect, Text } from 'react-konva';
-import useImage from 'use-image';
 import type Konva from 'konva';
 import type { ComponentInstance, ComponentManifest, PinReference } from '@types';
 import { PIN_COLORS, svgToDataUrl } from './utils/pins';
+import { applyVisualRules } from './utils/visualRules';
+import { useSvgImage } from './hooks/useSvgImage';
+import { useComponentState } from './hooks/useComponentState';
+import { simulationClient } from '../worker/simulationClient';
 
 interface ComponentNodeProps {
     instance: ComponentInstance;
@@ -80,7 +84,30 @@ export function ComponentNode({
     onPinHover,
     onChangePosition,
 }: ComponentNodeProps) {
-    const [image] = useImage(manifest ? svgToDataUrl(manifest.art) : '');
+    // Hooks SIEMPRE en el mismo orden: los dos primeros dependen del id/tipo.
+    const workerState = useComponentState(instance.id);
+    /** Parámetros del documento ∪ observables del Worker (los últimos mandan) */
+    const state = { ...instance.params, ...workerState };
+    const art = manifest ? applyVisualRules(manifest.art, manifest.visualRules, state) : null;
+    const image = useSvgImage(manifest && art !== null ? svgToDataUrl(art) : null);
+
+    // Interacción `press` (pulsador): mousedown → true, mouseup global → false.
+    const press = manifest?.interactions?.find((i) => i.gesture === 'press');
+    const pressingRef = useRef(false);
+    useEffect(() => {
+        if (!press) return;
+        const release = () => {
+            if (!pressingRef.current) return;
+            pressingRef.current = false;
+            simulationClient.interact(instance.id, press.name, false);
+        };
+        window.addEventListener('mouseup', release);
+        window.addEventListener('touchend', release);
+        return () => {
+            window.removeEventListener('mouseup', release);
+            window.removeEventListener('touchend', release);
+        };
+    }, [press, instance.id]);
 
     if (!manifest) {
         return (
@@ -106,6 +133,11 @@ export function ComponentNode({
             draggable
             onClick={() => onSelect(instance.id)}
             onTap={() => onSelect(instance.id)}
+            onMouseDown={() => {
+                if (!press || pressingRef.current) return;
+                pressingRef.current = true;
+                simulationClient.interact(instance.id, press.name, true);
+            }}
             onDragMove={(e) => onChangePosition(instance.id, e.target.x(), e.target.y())}
             onDragEnd={(e) => onChangePosition(instance.id, e.target.x(), e.target.y())}
         >
