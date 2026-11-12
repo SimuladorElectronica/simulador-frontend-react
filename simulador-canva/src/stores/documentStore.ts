@@ -159,6 +159,29 @@ export class DocumentStore {
     }
 
     /**
+     * Reemplaza TODO el documento (p. ej. al abrir un enlace compartido).
+     * Recalcula los contadores de instancias/cables para que los ids que se
+     * generen después no colisionen con los del circuito cargado, invalida el
+     * hash de topología (App reenviará LOAD_CIRCUIT al Worker, con todos los
+     * programs incluidos) y notifica a la UI.
+     */
+    public replaceDocument(doc: CircuitDocument) {
+        this.document = {
+            formatVersion: doc.formatVersion,
+            components: doc.components,
+            wires: doc.wires,
+            programs: doc.programs,
+            meta: { ...doc.meta, updatedAt: Date.now() },
+            ...(doc.embeddedManifests ? { embeddedManifests: doc.embeddedManifests } : {}),
+        };
+        this.instanceCounter = maxNumericSuffix(this.document.components.map((c) => c.id));
+        this.wireCounter = maxNumericSuffix(this.document.wires.map((w) => w.id));
+        // El circuito cargado es "topología nueva" para el worker
+        this.lastProjectionHash = '';
+        this.notifyUI();
+    }
+
+    /**
      * Guarda (o reemplaza) el sketch del MCU en el documento.
      * Forma parte de la topología de simulación: al incluirse en la proyección,
      * el sketch se reenvía al Worker en cada LOAD_CIRCUIT y sobrevive a los
@@ -252,3 +275,13 @@ export class DocumentStore {
 }
 
 export const documentStore = new DocumentStore();
+
+/** Mayor sufijo numérico de ids tipo `algo_12` (para no repetir contadores al cargar documentos ajenos). */
+function maxNumericSuffix(ids: string[]): number {
+    let max = 0;
+    for (const id of ids) {
+        const match = /_(\d+)$/.exec(id);
+        if (match) max = Math.max(max, Number(match[1]));
+    }
+    return max;
+}

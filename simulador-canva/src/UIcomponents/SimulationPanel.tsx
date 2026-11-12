@@ -2,6 +2,8 @@ import { useSimulation } from './hooks/useSimulation';
 import { simulationClient } from '../worker/simulationClient';
 import { simulationStore } from '../stores/simulationStore';
 import { SerialConsole } from './SerialConsole';
+import { ShareCircuit } from './ShareCircuit';
+import { AccountPanel } from './AccountPanel';
 
 const fmt = (v: unknown) =>
     typeof v === 'number' ? Number(v.toPrecision(4)).toString() : String(v ?? '—');
@@ -31,6 +33,9 @@ export function SimulationPanel() {
                 fontSize: 11,
             }}
         >
+            <AccountPanel />
+            <ShareCircuit />
+
             <h2 style={{ margin: '0 0 8px', fontSize: 13 }}>Simulación</h2>
 
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
