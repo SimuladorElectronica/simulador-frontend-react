@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useDocument } from './hooks/useDocument';
-import { useEffect } from 'react';
 import { ManifestRegistry } from '../core/registry/manifestRegistry';
 import { useAuth } from '../stores/authStore';
 import { useCurrentProject } from '../stores/projectStore';
@@ -21,6 +20,15 @@ export function ShareCircuit() {
     const auth = useAuth();
     const currentProject = useCurrentProject();
     const [title, setTitle] = useState(() => doc.meta.name);
+    // Ajustar el estado durante el render (patrón oficial de React): si el
+    // documento cambió externamente (p. ej. al abrir un enlace compartido o en
+    // "Nuevo circuito vacío"), sincronizamos el input. Comparar con el valor
+    // anterior evita bucles: el render siguiente ya ve los valores iguales.
+    const [prevDocName, setPrevDocName] = useState(() => doc.meta.name);
+    if (prevDocName !== doc.meta.name) {
+        setPrevDocName(doc.meta.name);
+        setTitle(doc.meta.name);
+    }
     const [isExporting, setIsExporting] = useState(false);
     const [shareUrl, setShareUrl] = useState<string | null>(null);
     const [savedUpdated, setSavedUpdated] = useState<boolean | null>(null);
@@ -31,11 +39,6 @@ export function ShareCircuit() {
     const mcuCount = doc.components.filter((c) => ManifestRegistry.get(c.type)?.mcu).length;
     const programCount = doc.programs.length;
     const isLoggedIn = auth.status === 'authenticated';
-
-    // Sincronizar el título cuando el documento cambie externamente (p. ej. al abrir un enlace compartido)
-    useEffect(() => {
-        setTitle(doc.meta.name);
-    }, [doc.meta.name]);
 
     const handleExport = async (forceNew = false) => {
         setIsExporting(true);
