@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Sidebar } from './UIcomponents/Sidebar'
 import { SimulatorCanvas } from './UIcomponents/SimulatorCanvas'
 import { SimulationPanel } from './UIcomponents/SimulationPanel'
@@ -12,11 +12,14 @@ import { simulationClient } from './worker/simulationClient'
 import { loadProjectBySlug, normalizeCircuitDocument } from './services/api'
 import { authStore } from './stores/authStore'
 import { saveToken } from './services/session'
+import { startFreshCircuit } from './services/freshCircuit'
 
 function App() {
   // /p/:slug o /share/:slug → cargar el circuito compartido del backend
   // /session/:token         → abrir con una sesión ya iniciada (el token se guarda y se retira de la URL)
+  // /new o /…?new=1         → empezar en blanco: lienzo vacío y sin proyecto recordado
   const { slug, token: sessionToken } = useParams<{ slug?: string; token?: string }>()
+  const location = useLocation()
   const navigate = useNavigate()
   const addAtCenterRef = useRef<(type: string) => void>(() => {})
   const doc = useDocument()
@@ -24,6 +27,10 @@ function App() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const loadStartedRef = useRef(false)
   const sessionHandledRef = useRef(false)
+  const freshHandledRef = useRef(false)
+
+  const wantsFresh =
+    location.pathname === '/new' || new URLSearchParams(location.search).get('new') === '1'
 
   // Enviar el circuito al worker solo cuando cambia la topología
   // (mover componentes en el canvas NO dispara LOAD_CIRCUIT: la proyección excluye posiciones).
@@ -33,6 +40,23 @@ function App() {
       simulationClient.loadCircuit(documentStore.getSimulationProjection(), ManifestRegistry.getAll())
     }
   }, [doc])
+
+  // /new o /…?new=1 → empezar un circuito desde cero (así enlaza el dashboard:
+  // "Nuevo proyecto"). Vacía el lienzo y olvida el proyecto recordado para que
+  // el primer guardado cree uno NUEVO en la cuenta (POST), no edite el último.
+  useEffect(() => {
+    if (!wantsFresh || freshHandledRef.current) return
+    freshHandledRef.current = true
+    const snap = documentStore.getSnapshot()
+    const hasWork =
+      snap.components.length + snap.wires.length + snap.programs.length > 0
+    // En una pestaña nueva el lienzo ya está vacío y no se pregunta nada;
+    // solo confirmamos si llegaríamos con trabajo sin guardar (SPA en caliente).
+    if (!hasWork || window.confirm('¿Empezar un circuito vacío? Se limpia el lienzo actual.')) {
+      startFreshCircuit()
+    }
+    navigate('/', { replace: true })
+  }, [wantsFresh, navigate])
 
   // Sesión recibida por URL (/session/:token): guardar, validar con /auth/me y limpiar la URL
   useEffect(() => {

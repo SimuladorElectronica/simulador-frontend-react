@@ -2,12 +2,10 @@ import { useState } from 'react';
 import { useDocument } from './hooks/useDocument';
 import { useEffect } from 'react';
 import { ManifestRegistry } from '../core/registry/manifestRegistry';
-import { documentStore } from '../stores/documentStore';
-import { programEditorStore } from '../stores/programEditorStore';
-import { selectionStore } from '../stores/selectionStore';
 import { useAuth } from '../stores/authStore';
-import { useCurrentProject, projectStore } from '../stores/projectStore';
+import { useCurrentProject } from '../stores/projectStore';
 import { ApiError, exportCircuit } from '../services/api';
+import { startFreshCircuit, FRESH_CIRCUIT_NAME } from '../services/freshCircuit';
 
 /**
  * Bloque "Compartir proyecto" de la columna derecha.
@@ -68,21 +66,12 @@ export function ShareCircuit() {
             '¿Empezar un circuito vacío? Se limpia el lienzo y el próximo guardado creará un proyecto nuevo.',
         );
         if (!confirmed) return;
-        documentStore.replaceDocument({
-            formatVersion: 1,
-            components: [],
-            wires: [],
-            programs: [],
-            meta: { name: 'Proyecto Sin Título', createdAt: Date.now(), updatedAt: Date.now() },
-        });
-        programEditorStore.reset();
-        selectionStore.setSelection(null);
-        projectStore.clear();
+        startFreshCircuit();
         setShareUrl(null);
         setSavedUpdated(null);
         setError(null);
         setCanForceNew(false);
-        setTitle('Proyecto Sin Título');
+        setTitle(FRESH_CIRCUIT_NAME);
     };
 
     const handleCopy = async () => {
