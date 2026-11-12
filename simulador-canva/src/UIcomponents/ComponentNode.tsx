@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { Circle, Group, Image as KonvaImage, Rect, Text } from 'react-konva';
+import { Circle, Group, Image as KonvaImage, Label, Rect, Tag, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { ComponentInstance, ComponentManifest, PinReference } from '@types';
 import { PIN_COLORS, svgToDataUrl } from './utils/pins';
 import { applyVisualRules } from './utils/visualRules';
 import { useSvgImage } from './hooks/useSvgImage';
 import { useComponentState } from './hooks/useComponentState';
+import { useBuzzerAudio } from './hooks/useBuzzerAudio';
 import { simulationClient } from '../worker/simulationClient';
 
 interface ComponentNodeProps {
@@ -91,6 +92,10 @@ export function ComponentNode({
     const art = manifest ? applyVisualRules(manifest.art, manifest.visualRules, state) : null;
     const image = useSvgImage(manifest && art !== null ? svgToDataUrl(art) : null);
 
+    // Audio del zumbador: se activa según el observable `on` del componente.
+    const buzzerOn = manifest ? Boolean(state.on) : false;
+    useBuzzerAudio(manifest?.id === 'core/buzzer@1' ? instance.id : undefined, manifest?.id, buzzerOn);
+
     // Interacción `press` (pulsador): mousedown → true, mouseup global → false.
     const press = manifest?.interactions?.find((i) => i.gesture === 'press');
     const pressingRef = useRef(false);
@@ -125,6 +130,8 @@ export function ComponentNode({
         hoverPin && hoverPin.componentId === instance.id
             ? manifest.pins.find((p) => p.id === hoverPin.pinId)
             : undefined;
+
+    const labelWidth = hoveredPin ? hoveredPin.label.length * 7 + 14 : 0;
 
     return (
         <Group
@@ -179,15 +186,15 @@ export function ComponentNode({
             })}
 
             {hoveredPin && (
-                <Text
-                    x={hoveredPin.position.x <= width / 2 ? hoveredPin.position.x - 56 : hoveredPin.position.x + 6}
-                    y={hoveredPin.position.y - 16}
-                    width={50}
-                    align={hoveredPin.position.x <= width / 2 ? 'right' : 'left'}
-                    text={hoveredPin.label}
-                    fontSize={10}
-                    fill="#263238"
-                />
+                <Label
+                    x={hoveredPin.position.x <= width / 2 ? hoveredPin.position.x - 8 - labelWidth : hoveredPin.position.x + 8}
+                    y={hoveredPin.position.y - 11}
+                    listening={false}
+                    opacity={0.97}
+                >
+                    <Tag cornerRadius={4} fill="#ffffff" stroke="#b0bec5" strokeWidth={1} />
+                    <Text text={hoveredPin.label} fontSize={10} padding={4} fill="#263238" />
+                </Label>
             )}
         </Group>
     );

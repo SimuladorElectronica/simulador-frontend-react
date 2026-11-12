@@ -91,6 +91,19 @@ describe('exportCircuit (crear vs. editar el MISMO proyecto)', () => {
         expect(headers.Authorization).toBe('Bearer token-de-prueba');
     });
 
+    it('guarda el título dentro de circuitData.meta.name (se restaura al cargar)', async () => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValue(jsonResponse(201, savedProjectBody('uuid-4', 'tit123')));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await exportCircuit({ title: 'Mi circuito' });
+        const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+        expect(body.title).toBe('Mi circuito');
+        expect(body.circuitData.meta.name).toBe('Mi circuito');
+        expect(body.circuitData.meta.name).not.toBe('Proyecto Sin Título');
+    });
+
     it('forceNew: ignora el proyecto recordado y crea uno nuevo', async () => {
         projectStore.set({ id: 'uuid-9', shareSlug: 'zzz999' });
         const fetchMock = vi

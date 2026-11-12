@@ -216,10 +216,11 @@ function authHeaders(): Record<string, string> {
  */
 export async function exportCircuit(options: ExportOptions = {}): Promise<SavedProject> {
     const doc = documentStore.getSnapshot();
+    const effectiveTitle = options.title?.trim() || doc.meta.name || 'Circuito sin título';
     const payload = {
-        title: options.title?.trim() || doc.meta.name || 'Circuito sin título',
+        title: effectiveTitle,
         ...(options.description?.trim() ? { description: options.description.trim() } : {}),
-        circuitData: doc,
+        circuitData: { ...doc, meta: { ...doc.meta, name: effectiveTitle } },
         code: buildShareCode(doc),
         isPublic: options.isPublic ?? true,
     };

@@ -60,6 +60,15 @@ function App() {
         // Los programs viajan dentro de circuitData: se restauran TODOS los
         // sketches, uno por cada ESP32 del circuito.
         const normalized = normalizeCircuitDocument(project.circuitData, project.title)
+        // El título canónico es el del proyecto en el backend. Los circuitData
+        // guardados antes de sincronizar meta.name podían tener un meta.name
+        // viejo (p. ej. "Proyecto Sin Título") aunque projects.title fuera el
+        // correcto; preferimos title para que el input muestre lo que el
+        // usuario guarda y ve en el dashboard.
+        const backendTitle = typeof project.title === 'string' ? project.title.trim() : ''
+        if (backendTitle && backendTitle !== normalized.meta.name) {
+          normalized.meta = { ...normalized.meta, name: backendTitle }
+        }
         documentStore.replaceDocument(normalized)
         // El editor queda apuntando al MCU recién cargado en la próxima selección
         programEditorStore.reset()

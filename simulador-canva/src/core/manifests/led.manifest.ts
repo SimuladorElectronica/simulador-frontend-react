@@ -87,5 +87,12 @@ export const LedManifest: ComponentManifest = {
       targetId: 'lamp',
       mapping: { type: 'value' },
     },
+    // Halo de luz: se tiñe con el mismo color que el domo
+    {
+      observable: 'color',
+      property: 'fill',
+      targetId: 'glow',
+      mapping: { type: 'value' },
+    },
   ],
 };

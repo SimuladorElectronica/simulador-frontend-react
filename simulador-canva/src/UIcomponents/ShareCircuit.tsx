@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDocument } from './hooks/useDocument';
+import { useEffect } from 'react';
 import { ManifestRegistry } from '../core/registry/manifestRegistry';
 import { documentStore } from '../stores/documentStore';
 import { programEditorStore } from '../stores/programEditorStore';
@@ -32,6 +33,11 @@ export function ShareCircuit() {
     const mcuCount = doc.components.filter((c) => ManifestRegistry.get(c.type)?.mcu).length;
     const programCount = doc.programs.length;
     const isLoggedIn = auth.status === 'authenticated';
+
+    // Sincronizar el título cuando el documento cambie externamente (p. ej. al abrir un enlace compartido)
+    useEffect(() => {
+        setTitle(doc.meta.name);
+    }, [doc.meta.name]);
 
     const handleExport = async (forceNew = false) => {
         setIsExporting(true);
