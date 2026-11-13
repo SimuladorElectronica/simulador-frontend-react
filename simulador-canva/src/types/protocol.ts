@@ -7,6 +7,7 @@ export type UICommand =
     | { type: 'SET_PROGRAM'; payload: { mcuComponentId: string; source: string } }
     | { type: 'CONTROL'; payload: { action: 'START' | 'PAUSE' | 'RESET' | 'STEP'; stepUs?: number } }
     | { type: 'INTERACT'; payload: { componentId: string; field: string; value: unknown } }
+    | { type: 'MQTT_MESSAGE'; payload: { topic: string; payload: string } }
     | { type: 'ACK_SNAPSHOT'; payload: { seq: number } };
 
 export type WorkerEvent =

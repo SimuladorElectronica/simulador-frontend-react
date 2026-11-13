@@ -206,6 +206,9 @@ function authHeaders(): Record<string, string> {
  *
  * - Si hay un proyecto recordado en `projectStore` (y no se pide `forceNew`):
  *   edita ESE MISMO proyecto (PUT /projects/:id) en lugar de crear uno nuevo.
+ * - Los circuitos abiertos desde /p/:slug o /plantillas/:slug son COPIA: no
+ *   se recuerda el proyecto, así que el primer guardado siempre es un POST
+ *   (fork) y el original compartido/plantilla nunca recibe un PUT.
  * - Si no hay token, el PUT falla con 401 (el backend exige JWT para editar):
  *   la UI lo detecta vía `ApiError.status === 401` y ofrece "Guardar como
  *   proyecto nuevo" o iniciar sesión.
@@ -276,6 +279,10 @@ export async function apiFetchMe(): Promise<{ id: string; email: string; name: s
 /**
  * Busca un circuito por su shareSlug (6 caracteres). Lanza Error con un
  * mensaje legible si no existe o es privado (el backend responde 404).
+ *
+ * El proyecto abierto se trata SIEMPRE como una COPIA: no se recuerda en
+ * projectStore, así que guardar crea un proyecto NUEVO (fork) en lugar de
+ * editar el original compartido (entregas, starters de guía, etc.).
  */
 export async function loadProjectBySlug(slug: string): Promise<ProjectPublicView> {
     const response = await fetch(`${API_URL}/projects/${encodeURIComponent(slug)}`);
@@ -284,10 +291,5 @@ export async function loadProjectBySlug(slug: string): Promise<ProjectPublicView
         throw new ApiError('No existe un circuito público con ese enlace (o es privado).', 404);
     }
     if (!response.ok) throw await parseError(response);
-    const project = (await response.json()) as ProjectPublicView;
-    // Recordar el proyecto abierto: al exportar se EDITA el mismo (PUT), no se
-    // crea uno nuevo. Si no es del usuario, el PUT fallará con 403 y la UI
-    // ofrecerá "Guardar como proyecto nuevo".
-    projectStore.set({ id: project.id, shareSlug: project.shareSlug });
-    return project;
+    return (await response.json()) as ProjectPublicView;
 }

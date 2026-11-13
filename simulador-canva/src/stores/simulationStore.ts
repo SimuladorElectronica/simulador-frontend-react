@@ -47,8 +47,7 @@ export class SimulationStore {
     private pushLog(text: string) {
         const entry: SimLogEntry = { timeUs: this.snapshot.virtualTimeUs, text };
         const log = [...this.snapshot.log.slice(-199), entry];
-         
-        console.log(`[sim t=${entry.timeUs}us] ${text}`);
+
         return log;
     }
 
@@ -94,11 +93,29 @@ export class SimulationStore {
             this.rebuild({ serial: [] });
             return;
         }
+        if (
+            (eventType === 'MQTT_SUBSCRIBE' || eventType === 'MQTT_UNSUBSCRIBE') &&
+            data &&
+            typeof data === 'object'
+        ) {
+            const d = data as { topic?: unknown };
+            const verb = eventType === 'MQTT_SUBSCRIBE' ? 'SUBSCRIBE' : 'UNSUBSCRIBE';
+            const log = this.pushLog(`MQTT ${verb} ${String(d.topic ?? '?')}`);
+            this.rebuild({ log });
+            return;
+        }
+        if (eventType === 'MQTT_PUBLISH' && data && typeof data === 'object') {
+            const d = data as { topic?: unknown; payload?: unknown };
+            const log = this.pushLog(
+                `MQTT PUBLISH ${String(d.topic ?? '?')}: ${String(d.payload ?? '')}`,
+            );
+            this.rebuild({ log });
+            return;
+        }
         if (eventType === 'SERIAL') {
             const entry: SimLogEntry = { timeUs: this.snapshot.virtualTimeUs, text: String(data ?? '') };
             const serial = [...this.snapshot.serial.slice(-99), entry];
-             
-            console.log(`[serial ${sourceId}] ${entry.text}`);
+
             this.rebuild({ serial });
             return;
         }
@@ -132,7 +149,7 @@ export class SimulationStore {
 
     public applyHeartbeat(realTimeMs: number) {
         // Solo consola, sin re-render
-         
+    
         console.log(`[sim] HEARTBEAT ${realTimeMs}`);
     }
 

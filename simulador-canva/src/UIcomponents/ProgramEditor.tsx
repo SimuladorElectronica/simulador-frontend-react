@@ -1,6 +1,7 @@
 import { Suspense, lazy, useMemo, useState } from 'react';
 import { useDocument } from './hooks/useDocument';
 import { useProgramEditor } from './hooks/useProgramEditor';
+import { LibraryModal } from './LibraryModal';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { DEFAULT_SKETCH } from '../core/editor/defaultSketch';
 import { programEditorStore } from '../stores/programEditorStore';
@@ -35,6 +36,7 @@ export function ProgramEditor() {
     const doc = useDocument();
     const editor = useProgramEditor();
     const [status, setStatus] = useState('');
+    const [libraryModalOpen, setLibraryModalOpen] = useState(false);
 
     // MCU objetivo: el ESP32 seleccionado en el canvas; si todavía no
     // hay ninguno elegido, el primero del circuito.
@@ -150,10 +152,16 @@ export function ProgramEditor() {
                     {diagnostics.length > 0 && (
                         <div
                             data-testid="editor-diagnostics"
-                            style={{ fontSize: 11, color: '#b71c1c', flexShrink: 0 }}
+                            style={{ flexShrink: 0 }}
                         >
                             {diagnostics.map((d, i) => (
-                                <div key={i}>
+                                <div
+                                    key={i}
+                                    style={{
+                                        fontSize: 11,
+                                        color: d.severity === 'warning' ? '#ef6c00' : '#b71c1c',
+                                    }}
+                                >
                                     ⚠ {d.code}: {d.message}
                                 </div>
                             ))}
@@ -169,6 +177,12 @@ export function ProgramEditor() {
             )}
 
             <button
+                onClick={() => setLibraryModalOpen(true)}
+                style={{ padding: '6px 10px', cursor: 'pointer', width: '100%', flexShrink: 0 }}
+            >
+                📚 Librerías
+            </button>
+            <button
                 onClick={load}
                 style={{ padding: '6px 10px', cursor: 'pointer', fontWeight: 600, flexShrink: 0 }}
             >
@@ -177,6 +191,8 @@ export function ProgramEditor() {
             {status && (
                 <div style={{ fontSize: 11, color: '#546e7a', flexShrink: 0 }}>{status}</div>
             )}
+
+            {libraryModalOpen && <LibraryModal onClose={() => setLibraryModalOpen(false)} />}
         </section>
     );
 }

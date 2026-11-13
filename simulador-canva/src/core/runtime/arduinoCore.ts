@@ -1,4 +1,4 @@
-import type { ComponentManifest, HostInterface } from '@types';
+import type { ComponentManifest, HostInterface, LibraryEvent } from '@types';
 import { ARDUINO, ESP32_PROFILE, pinByGpio, hasCapability } from './esp32Profile';
 import { createGpioState } from './gpioState';
 import type { GpioState, GpioStates, GpioMode } from './gpioState';
@@ -27,6 +27,8 @@ export interface ArduinoCoreOptions {
     onDirty?: () => void;
     /** Salida serie */
     onSerial?: (text: string) => void;
+    /** Eventos de librerías (LCD, MQTT, WiFi) que el Worker traduce a estado */
+    onLibraryEvent?: (event: LibraryEvent) => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export class ArduinoCore implements HostInterface {
     private readonly clock: () => number;
     private readonly onDirty: () => void;
     private readonly onSerial: (text: string) => void;
+    private readonly onLibraryEvent: (event: LibraryEvent) => void;
     private states: GpioStates = new Map();
 
     constructor(opts: ArduinoCoreOptions) {
@@ -45,6 +48,7 @@ export class ArduinoCore implements HostInterface {
         this.clock = opts.clock;
         this.onDirty = opts.onDirty ?? (() => undefined);
         this.onSerial = opts.onSerial ?? (() => undefined);
+        this.onLibraryEvent = opts.onLibraryEvent ?? (() => undefined);
     }
 
     /* ---------------- utilidades ---------------- */
@@ -197,6 +201,11 @@ export class ArduinoCore implements HostInterface {
 
     serialPrintln(text?: string): void {
         this.onSerial((text ?? '') + '\n');
+    }
+
+    /** Los adaptadores de librerías avisan por acá (LCD, MQTT, WiFi). */
+    emitLibraryEvent(event: LibraryEvent): void {
+        this.onLibraryEvent(event);
     }
 
     /** Tensión de salida que el solver debe imponer en el pad (promedio DC) */

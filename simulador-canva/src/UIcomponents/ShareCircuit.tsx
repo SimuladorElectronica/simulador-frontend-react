@@ -3,6 +3,7 @@ import { useDocument } from './hooks/useDocument';
 import { ManifestRegistry } from '../core/registry/manifestRegistry';
 import { useAuth } from '../stores/authStore';
 import { useCurrentProject } from '../stores/projectStore';
+import { useActiveTemplate } from '../stores/templateStore';
 import { ApiError, exportCircuit } from '../services/api';
 import { startFreshCircuit, FRESH_CIRCUIT_NAME } from '../services/freshCircuit';
 
@@ -14,6 +15,14 @@ import { startFreshCircuit, FRESH_CIRCUIT_NAME } from '../services/freshCircuit'
  * genera proyectos duplicados en guardados repetidos; si el backend rechaza
  * la edición (401 sin sesión / 403 proyecto ajeno / 404 borrado) la UI ofrece
  * "Guardar como proyecto nuevo" de forma explícita.
+ *
+ * Modo plantilla (/plantillas/:slug): el proyecto nunca se recuerda, así que
+ * el primer guardado siempre crea un proyecto NUEVO (fork) a nombre del
+ * usuario; la plantilla original jamás recibe un PUT.
+ *
+ * Enlaces compartidos (/p/:slug, entregas o starters de guía): también se
+ * abren como copia (projectStore se limpia al cargar), por lo que guardar
+ * crea un proyecto NUEVO en lugar de editar el original.
  */
 export function ShareCircuit() {
     const doc = useDocument();
@@ -39,6 +48,7 @@ export function ShareCircuit() {
     const mcuCount = doc.components.filter((c) => ManifestRegistry.get(c.type)?.mcu).length;
     const programCount = doc.programs.length;
     const isLoggedIn = auth.status === 'authenticated';
+    const activeTemplate = useActiveTemplate();
 
     const handleExport = async (forceNew = false) => {
         setIsExporting(true);
@@ -125,9 +135,13 @@ export function ShareCircuit() {
                     ? isLoggedIn
                         ? `Se actualizará el proyecto guardado (slug ${currentProject.shareSlug}) en tu cuenta.`
                         : `Proyecto recordado (slug ${currentProject.shareSlug}). Iniciá sesión para poder editarlo; si no, se creará una copia nueva.`
-                    : isLoggedIn
-                        ? 'Se creará un proyecto nuevo en tu cuenta.'
-                        : 'Sin sesión: se guardará como proyecto anónimo (solo lectura).'}
+                    : activeTemplate
+                        ? isLoggedIn
+                            ? `Copia de la plantilla "${activeTemplate.title}": al guardar se crea un proyecto NUEVO en tu cuenta. La plantilla nunca se modifica.`
+                            : `Copia de la plantilla "${activeTemplate.title}": sin sesión se guardará como proyecto anónimo (solo lectura). Iniciá sesión para guardarla como proyecto propio.`
+                        : isLoggedIn
+                            ? 'Se creará un proyecto nuevo en tu cuenta.'
+                            : 'Sin sesión: se guardará como proyecto anónimo (solo lectura).'}
             </div>
 
             <button

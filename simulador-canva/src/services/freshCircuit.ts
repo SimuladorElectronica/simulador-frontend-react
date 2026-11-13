@@ -15,6 +15,7 @@ import { documentStore } from '../stores/documentStore';
 import { programEditorStore } from '../stores/programEditorStore';
 import { selectionStore } from '../stores/selectionStore';
 import { projectStore } from '../stores/projectStore';
+import { templateStore } from '../stores/templateStore';
 
 export const FRESH_CIRCUIT_NAME = 'Proyecto Sin Título';
 
@@ -29,4 +30,5 @@ export function startFreshCircuit(): void {
     programEditorStore.reset();
     selectionStore.setSelection(null);
     projectStore.clear();
+    templateStore.clear();
 }

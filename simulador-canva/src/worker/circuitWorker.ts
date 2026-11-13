@@ -2,11 +2,11 @@ import { PROTOCOL_VERSION } from '@types';
 import type { UICommand, WorkerEvent } from '@types';
 import type { Netlist, SolverSolution } from '@types';
 import type { SimulationProjection } from '@types';
-import type { ComponentManifest } from '@types';
+import type { ComponentManifest, LibraryEvent } from '@types';
 import type { GpioStateIndex } from '@core/runtime/gpioState';
 import { addGpioStates } from '@core/runtime/gpioState';
 import { ArduinoCore } from '@core/runtime/arduinoCore';
-import { cppSubsetBackend } from '@core/runtime/cppSubsetBackend';
+import { cppSubsetBackend, enqueueMqttMessage } from '@core/runtime/cppSubsetBackend';
 import { buildNetlist, solve, evaluateMonitors, createMonitorStates } from '@core/solver';
 import type { MonitorEvent, MonitorStates } from '@core/solver';
 import { deriveComponentStates } from '@core/runtime/componentStates';
@@ -50,6 +50,13 @@ let loadedManifests: ComponentManifest[] = [];
  * añadió un cable). Se depuran los componentes que ya no existen.
  */
 const componentInputs = new Map<string, Record<string, unknown>>();
+
+/**
+ * Vínculo entre un objeto de librería declarado en un sketch
+ * (`mcuComponentId:objectName`, p. ej. `esp32-1:lcd`) y el componente del
+ * canvas que lo representa. Se resuelve por `ComponentManifest.libraries`.
+ */
+const displayBindings = new Map<string, string>();
 
 /**
  * Estado acumulado de los monitores (`COMPONENT_BURNED`, `BROWNOUT_RESET`, …).
@@ -203,6 +210,95 @@ function sendEvent(eventType: string, sourceId: string, data: unknown): void {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Librerías curadas (LCD, WiFi, MQTT)                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Resuelve a qué componente del canvas corresponde un objeto de librería.
+ *
+ * El sketch no conoce ids del canvas (`lcd` es solo una variable C++), así
+ * que se elige el primer componente compatible con la librería que todavía
+ * no esté vinculado. Para varias LCDs se podría usar la dirección I2C, pero
+ * en el MVP cada objeto toma una pantalla distinta.
+ */
+function bindDisplay(mcuId: string, objectName: string, libraryId: string): string | null {
+    const key = `${mcuId}:${objectName}`;
+    const existing = displayBindings.get(key);
+    if (existing) return existing;
+
+    const manifestById = new Map(loadedManifests.map((manifest) => [manifest.id, manifest]));
+    const alreadyBound = new Set(displayBindings.values());
+    const target = loadedComponents.find((component) => {
+        if (alreadyBound.has(component.id)) return false;
+        return manifestById.get(component.type)?.libraries?.includes(libraryId) ?? false;
+    });
+    if (!target) return null;
+
+    displayBindings.set(key, target.id);
+    return target.id;
+}
+
+/** Los textos de la LCD son estado de simulación, no una interacción del usuario. */
+function clearDisplayInputs(): void {
+    for (const [componentId, fields] of [...componentInputs]) {
+        delete fields.line1;
+        delete fields.line2;
+        if (Object.keys(fields).length === 0) componentInputs.delete(componentId);
+    }
+}
+
+/**
+ * Traduce eventos de adaptadores de librerías a estado del Worker:
+ *  - display           → `line1`/`line2` del componente LCD (el snapshot los pinta)
+ *  - mqtt-publish      → evento MQTT_PUBLISH para el monitor del hilo principal
+ *  - mqtt-subscription → evento MQTT_SUBSCRIBE / MQTT_UNSUBSCRIBE (monitor + broker)
+ *  - wifi              → WIFI_STATE informativo
+ */
+function handleLibraryEvent(mcuId: string, event: LibraryEvent): void {
+    switch (event.kind) {
+        case 'display': {
+            const componentId = bindDisplay(mcuId, event.objectName, event.library);
+            if (!componentId) return;
+
+            const fields = componentInputs.get(componentId) ?? {};
+            const visibleLines = event.displayOn ? event.lines : [];
+            fields.line1 = visibleLines[0] ?? '';
+            fields.line2 = visibleLines[1] ?? '';
+            componentInputs.set(componentId, fields);
+            return;
+        }
+
+        case 'mqtt-publish':
+            sendEvent('MQTT_PUBLISH', mcuId, {
+                library: event.library,
+                objectName: event.objectName,
+                topic: event.topic,
+                payload: event.payload,
+            });
+            return;
+
+        case 'mqtt-subscription':
+            sendEvent(
+                event.action === 'subscribe' ? 'MQTT_SUBSCRIBE' : 'MQTT_UNSUBSCRIBE',
+                mcuId,
+                {
+                    library: event.library,
+                    objectName: event.objectName,
+                    topic: event.topic,
+                },
+            );
+            return;
+
+        case 'wifi':
+            sendEvent('WIFI_STATE', mcuId, {
+                connected: event.connected,
+                ip: event.ip ?? '',
+            });
+            return;
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Runtime C++ / MCU                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -274,6 +370,7 @@ function createMcuRuntimes(projection: SimulationProjection, manifests: Componen
                 gpioDirty = true;
             },
             onSerial: (text) => queueSerial(id, text),
+            onLibraryEvent: (event) => handleLibraryEvent(id, event),
         });
 
         mcuRuntimes.set(id, {
@@ -567,6 +664,8 @@ self.addEventListener('message', (event: MessageEvent<UICommand>) => {
             monitorStates = createMonitorStates();
             serialBuffer.clear();
             lastSerialFlushUs = 0;
+            displayBindings.clear();
+            clearDisplayInputs();
 
             const { projection, manifests: incoming } = cmd.payload;
             try {
@@ -664,6 +763,8 @@ self.addEventListener('message', (event: MessageEvent<UICommand>) => {
                     lastDeltaSentUs = 0;
                     serialBuffer.clear();
                     lastSerialFlushUs = 0;
+                    displayBindings.clear();
+                    clearDisplayInputs();
                     // El reset restaura el circuito: los monitores rearman y los
                     // componentes destruidos vuelven a estar intactos
                     monitorStates = createMonitorStates();
@@ -703,6 +804,18 @@ self.addEventListener('message', (event: MessageEvent<UICommand>) => {
                     sendSnapshot('full');
                     break;
                 }
+            }
+            break;
+        }
+
+        case 'MQTT_MESSAGE': {
+            // Un mensaje del broker para el callback del sketch: se encola y se
+            // entrega en el próximo resume (sin interrumpir delay(); si el
+            // sketch no tiene `setCallback`, se descarta).
+            const { topic, payload } = cmd.payload;
+            for (const rt of mcuRuntimes.values()) {
+                if (!rt.running || !rt.instance) continue;
+                enqueueMqttMessage(rt.instance, topic, payload);
             }
             break;
         }

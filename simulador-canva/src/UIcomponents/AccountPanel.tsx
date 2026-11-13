@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { authStore, useAuth } from '../stores/authStore';
-import { DASHBOARD_URL, getDashboardHandoffUrl } from '../services/session';
+import { DASHBOARD_URL, getDashboardHandoffUrl, hasStoredToken, isGuestMode } from '../services/session';
 
 const inputStyle = {
     width: '100%',
@@ -18,7 +18,9 @@ const inputStyle = {
 /**
  * Panel "Cuenta" de la columna derecha.
  * - Deslogueado: formulario de inicio de sesión (el token se guarda en
- *   localStorage y se envía como Bearer a las llamadas autenticadas).
+ *   sessionStorage y se envía como Bearer a las llamadas autenticadas).
+ * - Modo invitado con sesión guardada (plantillas en equipos compartidos):
+ *   no se usa el token, pero se ofrece "Usar esa cuenta" o "Cerrar sesión".
  * - Logueado: datos del usuario, enlace al dashboard entregándole el token
  *   (fragment) y botón de cerrar sesión.
  */
@@ -147,6 +149,44 @@ export function AccountPanel() {
                     Registrate en el dashboard →
                 </a>
             </div>
+
+            {isGuestMode() && hasStoredToken() && (
+                <div
+                    data-testid="guest-session-notice"
+                    style={{
+                        marginTop: 10,
+                        padding: '8px 10px',
+                        borderRadius: 6,
+                        border: '1px solid #455a64',
+                        background: '#1c262b',
+                        fontSize: 10,
+                        color: '#b0bec5',
+                        lineHeight: 1.5,
+                    }}
+                >
+                    <div style={{ marginBottom: 6 }}>
+                        Modo invitado: no se usa la sesión guardada en este equipo.
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                            onClick={() => void authStore.usePersistedSession()}
+                            style={{
+                                flex: 1, padding: '6px 8px', borderRadius: 6, border: 'none',
+                                background: '#1565c0', color: '#fff', fontWeight: 700,
+                                fontSize: 10, cursor: 'pointer',
+                            }}
+                        >
+                            Usar esa cuenta
+                        </button>
+                        <button
+                            onClick={() => authStore.logout()}
+                            style={{ padding: '6px 10px', fontSize: 10 }}
+                        >
+                            Cerrar sesión
+                        </button>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

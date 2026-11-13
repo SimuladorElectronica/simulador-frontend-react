@@ -2,6 +2,7 @@ import { useSimulation } from './hooks/useSimulation';
 import { simulationClient } from '../worker/simulationClient';
 import { simulationStore } from '../stores/simulationStore';
 import { SerialConsole } from './SerialConsole';
+import { MqttMonitor } from './MqttMonitor';
 import { ShareCircuit } from './ShareCircuit';
 import { AccountPanel } from './AccountPanel';
 
@@ -101,6 +102,10 @@ export function SimulationPanel() {
 
             <div style={{ marginTop: 14 }}>
                 <SerialConsole entries={sim.serial} onClear={() => simulationStore.clearSerial()} />
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+                <MqttMonitor />
             </div>
 
             <h3 style={{ margin: '14px 0 4px', fontSize: 11 }}>Log (también en consola)</h3>

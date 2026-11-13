@@ -2,6 +2,8 @@ import { PROTOCOL_VERSION } from '@types';
 import type { UICommand, WorkerEvent } from '@types';
 import type { SimulationProjection, ComponentManifest } from '@types';
 import { simulationStore } from '../stores/simulationStore';
+import { mqttStore } from '../stores/mqttStore';
+import { mqttProxy } from '../services/mqttProxy';
 
 /**
  * Cliente del worker de simulación (hilo principal).
@@ -11,6 +13,15 @@ import { simulationStore } from '../stores/simulationStore';
 class SimulationClient {
     private worker: Worker | null = null;
     private requestId = 0;
+
+    constructor() {
+        // Mensajes del broker → Worker: se encolan para el callback del
+        // sketch (`setCallback`). Sin sketch con callback, el Worker los
+        // descarta. No se fuerza el despertar de un sketch pausado en delay().
+        mqttProxy.onMessage = (topic, payload) => {
+            this.post({ type: 'MQTT_MESSAGE', payload: { topic, payload } });
+        };
+    }
 
     private ensureWorker(): Worker | null {
         if (this.worker) return this.worker;
@@ -34,14 +45,12 @@ class SimulationClient {
     private post(cmd: UICommand) {
         const w = this.ensureWorker();
         if (!w) return;
-         
-        console.log('[sim->worker]', cmd.type, cmd.payload);
+    
         w.postMessage(cmd);
     }
 
     private handleEvent(event: WorkerEvent) {
-         
-        console.log('[worker->sim]', event.type, event.payload);
+    
         switch (event.type) {
             case 'READY':
                 simulationStore.applyReady(event.payload.version, event.payload.catalogVersion);
@@ -53,9 +62,30 @@ class SimulationClient {
                 simulationStore.applySnapshot(event.payload.virtualTimeUs, event.payload.changes, event.payload.seq, event.payload.type);
                 this.post({ type: 'ACK_SNAPSHOT', payload: { seq: event.payload.seq } });
                 break;
-            case 'EVENT':
-                simulationStore.applyEvent(event.payload.eventType, event.payload.sourceId, event.payload.data);
+            case 'EVENT': {
+                const { eventType, sourceId, data, virtualTimeUs } = event.payload;
+                // PubSubClient → MQTT_SUBSCRIBE / MQTT_UNSUBSCRIBE: suscripción real
+                // vía el proxy (chip en el monitor; re-suscribe al reconectar).
+                if (eventType === 'MQTT_SUBSCRIBE' || eventType === 'MQTT_UNSUBSCRIBE') {
+                    const d = (data ?? {}) as { topic?: unknown };
+                    const topic = String(d.topic ?? '').trim();
+                    if (topic) {
+                        if (eventType === 'MQTT_SUBSCRIBE') mqttProxy.subscribeTopic(topic);
+                        else mqttProxy.unsubscribeTopic(topic);
+                    }
+                }
+                // PubSubClient → MQTT_PUBLISH: queda en el monitor MQTT (eco local)
+                // y se reenvía al broker simulado (no-op si no está conectado).
+                if (eventType === 'MQTT_PUBLISH') {
+                    const d = (data ?? {}) as { topic?: unknown; payload?: unknown };
+                    const topic = String(d.topic ?? '');
+                    const payloadText = String(d.payload ?? '');
+                    mqttStore.recordLocalPublish(topic, payloadText, virtualTimeUs);
+                    mqttProxy.publish(topic, payloadText);
+                }
+                simulationStore.applyEvent(eventType, sourceId, data);
                 break;
+            }
             case 'HEARTBEAT':
                 simulationStore.applyHeartbeat(event.payload.realTimeMs);
                 break;
