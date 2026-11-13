@@ -2,6 +2,8 @@ import { useSimulation } from './hooks/useSimulation';
 import { simulationClient } from '../worker/simulationClient';
 import { simulationStore } from '../stores/simulationStore';
 import { SerialConsole } from './SerialConsole';
+import { ShareCircuit } from './ShareCircuit';
+import { AccountPanel } from './AccountPanel';
 
 const fmt = (v: unknown) =>
     typeof v === 'number' ? Number(v.toPrecision(4)).toString() : String(v ?? '—');
@@ -12,6 +14,10 @@ const fmt = (v: unknown) =>
 export function SimulationPanel() {
     const sim = useSimulation();
     const entries = Object.entries(sim.states);
+    // El Worker separa claves: los elementos son `componentId:elementId` y los
+    // estados de componente son solo `componentId` (lo que consume el canvas).
+    const elementEntries = entries.filter(([id]) => id.includes(':'));
+    const componentEntries = entries.filter(([id]) => !id.includes(':'));
 
     return (
         <aside
@@ -27,6 +33,9 @@ export function SimulationPanel() {
                 fontSize: 11,
             }}
         >
+            <AccountPanel />
+            <ShareCircuit />
+
             <h2 style={{ margin: '0 0 8px', fontSize: 13 }}>Simulación</h2>
 
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -47,7 +56,7 @@ export function SimulationPanel() {
             </div>
 
             <h3 style={{ margin: '10px 0 4px', fontSize: 11 }}>Elementos (V / I / P)</h3>
-            {entries.length === 0 ? (
+            {elementEntries.length === 0 ? (
                 <div style={{ color: '#90a4ae' }}>(sin resultados todavía — arma un circuito y pulsa Run)</div>
             ) : (
                 <table style={{ borderCollapse: 'collapse', width: '100%' }}>
@@ -60,7 +69,7 @@ export function SimulationPanel() {
                         </tr>
                     </thead>
                     <tbody>
-                        {entries.map(([id, s]) => (
+                        {elementEntries.map(([id, s]) => (
                             <tr key={id}>
                                 <td style={{ wordBreak: 'break-all' }}>{id}{s.conducting === true ? ' ●' : ''}</td>
                                 <td>{fmt(s.voltage)}</td>
@@ -70,6 +79,24 @@ export function SimulationPanel() {
                         ))}
                     </tbody>
                 </table>
+            )}
+
+            <h3 style={{ margin: '12px 0 4px', fontSize: 11 }}>Estados de componente</h3>
+            {componentEntries.length === 0 ? (
+                <div style={{ color: '#90a4ae' }}>(el Worker aún no publica estados por componente)</div>
+            ) : (
+                <div style={{ lineHeight: 1.6 }}>
+                    {componentEntries.map(([id, s]) => (
+                        <div key={id} style={{ marginBottom: 4 }}>
+                            <div style={{ color: '#80cbc4', wordBreak: 'break-all' }}>{id}</div>
+                            <div style={{ color: '#b0bec5', wordBreak: 'break-word' }}>
+                                {Object.entries(s)
+                                    .map(([k, v]) => `${k}=${fmt(v)}`)
+                                    .join(' · ') || '(vacío)'}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             )}
 
             <div style={{ marginTop: 14 }}>

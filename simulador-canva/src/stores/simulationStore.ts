@@ -18,6 +18,13 @@ export interface SimulationSnapshot {
     serial: SimLogEntry[];
 }
 
+/**
+ * Referencia estable para "este componente aún no tiene estado". Se usa en
+ * `getComponentState`: si se devolviera un `{}` nuevo en cada lectura,
+ * `useSyncExternalStore` (canvas/inspector) detectaría un cambio perpetuo.
+ */
+const EMPTY_COMPONENT_STATE: Record<string, unknown> = {};
+
 export class SimulationStore {
     private snapshot: SimulationSnapshot = {
         virtualTimeUs: 0,
@@ -61,7 +68,16 @@ export class SimulationStore {
         const log = this.pushLog(
             `SNAPSHOT seq=${seq} (${Object.keys(changes).length} cambios): ` +
                 Object.entries(changes)
-                    .map(([id, s]) => `${id} V=${fmt(s.voltage)} I=${fmt(s.current)} P=${fmt(s.power)}${s.conducting === true ? ' ON' : ''}`)
+                    .map(([id, s]) =>
+                        // Elementos: `componentId:elementId`. Componentes: solo `componentId`.
+                        id.includes(':')
+                            ? `${id} V=${fmt(s.voltage)} I=${fmt(s.current)} P=${fmt(s.power)}${
+                                  s.conducting === true ? ' ON' : ''
+                              }`
+                            : `${id} {${Object.entries(s)
+                                  .map(([k, v]) => `${k}=${fmt(v)}`)
+                                  .join(', ')}}`,
+                    )
                     .join(' · ') || '(sin cambios)',
         );
         this.rebuild({ virtualTimeUs, states, log, lastSeq: seq });
@@ -130,7 +146,8 @@ export class SimulationStore {
     }
 
     public getComponentState(componentId: string) {
-        return this.snapshot.states[componentId] || {};
+        // Referencia estable: `useSyncExternalStore` compara con `Object.is`.
+        return this.snapshot.states[componentId] || EMPTY_COMPONENT_STATE;
     }
 
     public getVirtualTimeUs() {

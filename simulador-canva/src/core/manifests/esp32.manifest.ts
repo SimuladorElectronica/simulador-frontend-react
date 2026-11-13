@@ -15,7 +15,7 @@ export const Esp32Manifest: ComponentManifest = {
   size: { width: 140, height: 260 },
 
   // Arte SVG sanitizado de la placa
-  art: `<svg viewBox="0 0 140 260">
+  art: `<svg xmlns="http://www.w3.org/2000/svg" width="140" height="260" viewBox="0 0 140 260">
     <rect width="140" height="260" fill="#1a252f" rx="8" stroke="#2c3e50" stroke-width="2"/>
     <rect x="25" y="15" width="80" height="80" fill="#bdc3c7" rx="4" stroke="#7f8c8d" stroke-width="1"/>
     <text x="30" y="45" font-size="10" fill="#2c3e50" font-weight="bold">ESP-WROOM-32</text>
