@@ -4,39 +4,76 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
  * Mock de WebSocket (jsdom no conecta a un broker real).
  * Cada instancia queda registrada en `instances` para inspeccionarla.
  */
+const WS_CONNECTING = 0;
+const WS_OPEN = 1;
+const WS_CLOSED = 3;
+
 class MockWebSocket {
     static instances: MockWebSocket[] = [];
-    static CONNECTING = 0;
-    static OPEN = 1;
-    static CLOSING = 2;
-    static CLOSED = 3;
 
-    readonly url: string;
-    readyState = MockWebSocket.CONNECTING;
-    sent: string[] = [];
+    readonly state = {
+        url: '',
+        readyState: WS_CONNECTING,
+        sent: [] as string[],
+        onopen: null as ((event: unknown) => void) | null,
+        onmessage: null as ((event: { data: unknown }) => void) | null,
+        onerror: null as ((event: unknown) => void) | null,
+        onclose: null as ((event: unknown) => void) | null,
+    };
 
-    onopen: ((event: unknown) => void) | null = null;
-    onmessage: ((event: { data: unknown }) => void) | null = null;
-    onerror: ((event: unknown) => void) | null = null;
-    onclose: ((event: unknown) => void) | null = null;
+    get readyState() {
+        return this.state.readyState;
+    }
+
+    get onopen() {
+        return this.state.onopen;
+    }
+
+    set onopen(handler: ((event: unknown) => void) | null) {
+        this.state.onopen = handler;
+    }
+
+    get onmessage() {
+        return this.state.onmessage;
+    }
+
+    set onmessage(handler: ((event: { data: unknown }) => void) | null) {
+        this.state.onmessage = handler;
+    }
+
+    get onerror() {
+        return this.state.onerror;
+    }
+
+    set onerror(handler: ((event: unknown) => void) | null) {
+        this.state.onerror = handler;
+    }
+
+    get onclose() {
+        return this.state.onclose;
+    }
+
+    set onclose(handler: ((event: unknown) => void) | null) {
+        this.state.onclose = handler;
+    }
 
     constructor(url: string) {
-        this.url = url;
+        this.state.url = url;
         MockWebSocket.instances.push(this);
     }
 
     send(data: unknown) {
-        this.sent.push(String(data));
+        this.state.sent.push(String(data));
     }
 
     close() {
-        this.readyState = MockWebSocket.CLOSED;
+        this.state.readyState = WS_CLOSED;
         this.onclose?.({});
     }
 
     /** Simula el handshake completado por el broker. */
     simulateOpen() {
-        this.readyState = MockWebSocket.OPEN;
+        this.state.readyState = WS_OPEN;
         this.onopen?.({});
     }
 
@@ -47,17 +84,23 @@ class MockWebSocket {
 
     /** Simula que el broker cortó la conexión. */
     simulateBrokerClose() {
-        this.readyState = MockWebSocket.CLOSED;
+        this.state.readyState = WS_CLOSED;
         this.onclose?.({});
     }
 }
+
+Object.assign(MockWebSocket, {
+    CONNECTING: WS_CONNECTING,
+    OPEN: WS_OPEN,
+    CLOSED: WS_CLOSED,
+});
 
 vi.stubGlobal('WebSocket', MockWebSocket);
 
 const { mqttProxy, resolveMqttWsUrl } = await import('../services/mqttProxy');
 const { mqttStore } = await import('../stores/mqttStore');
 
-const sentJson = (ws: MockWebSocket) => ws.sent.map((raw) => JSON.parse(raw));
+const sentJson = (ws: MockWebSocket) => ws.state.sent.map((raw) => JSON.parse(raw));
 
 describe('mqttProxy (broker simulado backend-iot-fastapi)', () => {
     beforeEach(() => {
@@ -77,7 +120,7 @@ describe('mqttProxy (broker simulado backend-iot-fastapi)', () => {
     it('connect abre el socket y marca "connecting"; onopen marca "connected"', () => {
         mqttProxy.connect();
         expect(MockWebSocket.instances).toHaveLength(1);
-        expect(MockWebSocket.instances[0].url).toBe('ws://localhost:8000/ws/simulador-frontend');
+        expect(MockWebSocket.instances[0].state.url).toBe('ws://localhost:8000/ws/simulador-frontend');
         expect(mqttStore.getState().connection).toBe('connecting');
 
         MockWebSocket.instances[0].simulateOpen();

@@ -64,16 +64,25 @@ async function fetchTemplateEndpoint(path: string): Promise<Response> {
     }
 }
 
+const asString = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+
+function pickSlug(raw: Record<string, unknown>, fallbackSlug: string): string {
+    const slug = asString(raw.slug);
+    return slug ? slug : fallbackSlug;
+}
+
+function pickTitle(raw: Record<string, unknown>): string {
+    const title = asString(raw.title)?.trim();
+    return title ? title : 'Plantilla sin título';
+}
+
 function normalizeSummary(raw: Record<string, unknown>, fallbackSlug: string): TemplateSummary {
     return {
-        id: typeof raw.id === 'string' ? raw.id : '',
-        slug: typeof raw.slug === 'string' && raw.slug !== '' ? raw.slug : fallbackSlug,
-        title:
-            typeof raw.title === 'string' && raw.title.trim() !== ''
-                ? raw.title.trim()
-                : 'Plantilla sin título',
-        description: typeof raw.description === 'string' ? raw.description : null,
-        updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : '',
+        id: asString(raw.id) ?? '',
+        slug: pickSlug(raw, fallbackSlug),
+        title: pickTitle(raw),
+        description: asString(raw.description),
+        updatedAt: asString(raw.updatedAt) ?? '',
     };
 }
 

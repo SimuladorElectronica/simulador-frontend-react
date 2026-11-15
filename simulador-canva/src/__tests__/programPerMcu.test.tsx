@@ -20,7 +20,7 @@ vi.mock('@monaco-editor/react', () => ({
   },
 }));
 
-import { ProgramEditor } from '../UIcomponents/ProgramEditor';
+import { ProgramEditor } from '../components/ProgramEditor';
 
 async function waitFor(predicate: () => boolean, timeoutMs = 2000) {
   const start = Date.now();

@@ -36,19 +36,23 @@ export interface ArduinoCoreOptions {
  * No conoce el solver: solo guarda estado por GPIO y valida contra el manifiesto.
  */
 export class ArduinoCore implements HostInterface {
-    private readonly manifest: ComponentManifest;
-    private readonly clock: () => number;
-    private readonly onDirty: () => void;
-    private readonly onSerial: (text: string) => void;
-    private readonly onLibraryEvent: (event: LibraryEvent) => void;
+    private readonly host: {
+        manifest: ComponentManifest;
+        clock: () => number;
+        onDirty: () => void;
+        onSerial: (text: string) => void;
+        onLibraryEvent: (event: LibraryEvent) => void;
+    };
     private states: GpioStates = new Map();
 
     constructor(opts: ArduinoCoreOptions) {
-        this.manifest = opts.manifest;
-        this.clock = opts.clock;
-        this.onDirty = opts.onDirty ?? (() => undefined);
-        this.onSerial = opts.onSerial ?? (() => undefined);
-        this.onLibraryEvent = opts.onLibraryEvent ?? (() => undefined);
+        this.host = {
+            manifest: opts.manifest,
+            clock: opts.clock,
+            onDirty: opts.onDirty ?? (() => undefined),
+            onSerial: opts.onSerial ?? (() => undefined),
+            onLibraryEvent: opts.onLibraryEvent ?? (() => undefined),
+        };
     }
 
     /* ---------------- utilidades ---------------- */
@@ -63,9 +67,9 @@ export class ArduinoCore implements HostInterface {
     }
 
     private requirePin(gpio: number) {
-        const pin = pinByGpio(this.manifest, gpio);
+        const pin = pinByGpio(this.host.manifest, gpio);
         if (!pin) {
-            throw new ArduinoError(`GPIO ${gpio} no existe en ${this.manifest.id}`);
+            throw new ArduinoError(`GPIO ${gpio} no existe en ${this.host.manifest.id}`);
         }
         return pin;
     }
@@ -124,7 +128,7 @@ export class ArduinoCore implements HostInterface {
         const s = this.state(gpio);
         const changed = s.mode !== gpioMode;
         s.mode = gpioMode;
-        if (changed) this.onDirty();
+        if (changed) this.host.onDirty();
     }
 
     digitalWrite(gpio: number, level: number): void {
@@ -137,7 +141,7 @@ export class ArduinoCore implements HostInterface {
         if (s.outputLevel !== lvl || s.pwmDuty !== null) {
             s.outputLevel = lvl as 0 | 1;
             s.pwmDuty = null;
-            this.onDirty();
+            this.host.onDirty();
         }
     }
 
@@ -153,7 +157,7 @@ export class ArduinoCore implements HostInterface {
         const d = Math.max(0, Math.min(ESP32_PROFILE.pwmMax, Math.floor(duty)));
         if (s.pwmDuty !== d) {
             s.pwmDuty = d;
-            this.onDirty();
+            this.host.onDirty();
         }
     }
 
@@ -176,36 +180,36 @@ export class ArduinoCore implements HostInterface {
     }
 
     delay(ms: number): void {
-        throw new SleepSignal(this.clock() + Math.max(0, ms) * 1000);
+        throw new SleepSignal(this.host.clock() + Math.max(0, ms) * 1000);
     }
 
     delayMicroseconds(us: number): void {
-        throw new SleepSignal(this.clock() + Math.max(0, us));
+        throw new SleepSignal(this.host.clock() + Math.max(0, us));
     }
 
     millis(): number {
-        return Math.floor(this.clock() / 1000);
+        return Math.floor(this.host.clock() / 1000);
     }
 
     micros(): number {
-        return Math.floor(this.clock());
+        return Math.floor(this.host.clock());
     }
 
     getTimeUs(): number {
-        return this.clock();
+        return this.host.clock();
     }
 
     serialPrint(text: string): void {
-        this.onSerial(text);
+        this.host.onSerial(text);
     }
 
     serialPrintln(text?: string): void {
-        this.onSerial((text ?? '') + '\n');
+        this.host.onSerial((text ?? '') + '\n');
     }
 
     /** Los adaptadores de librerías avisan por acá (LCD, MQTT, WiFi). */
     emitLibraryEvent(event: LibraryEvent): void {
-        this.onLibraryEvent(event);
+        this.host.onLibraryEvent(event);
     }
 
     /** Tensión de salida que el solver debe imponer en el pad (promedio DC) */

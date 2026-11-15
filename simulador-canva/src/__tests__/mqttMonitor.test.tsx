@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { mqttStore } from '../stores/mqttStore';
 import { mqttProxy } from '../services/mqttProxy';
-import { MqttMonitor } from '../UIcomponents/MqttMonitor';
+import { MqttMonitor } from '../components/MqttMonitor';
 
 // El monitor se conecta solo al montar: espiar para no abrir un socket real.
 const connectSpy = vi.spyOn(mqttProxy, 'connect').mockImplementation(() => undefined);

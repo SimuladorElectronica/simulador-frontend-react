@@ -37,10 +37,12 @@ const INITIAL_STATE: AuthState = { status: 'idle', user: null, error: null };
  */
 class AuthStore {
     private state: AuthState = INITIAL_STATE;
-    private listeners = new Set<() => void>();
-    private hydratePromise: Promise<void> | null = null;
-    /** Cambia al entrar/salir de invitado o cerrar sesión: invalida hydrates en vuelo. */
-    private epoch = 0;
+    private readonly runtime = {
+        listeners: new Set<() => void>(),
+        hydratePromise: null as Promise<void> | null,
+        /** Cambia al entrar/salir de invitado o cerrar sesión: invalida hydrates en vuelo. */
+        epoch: 0,
+    };
 
     public getState(): AuthState {
         return this.state;
@@ -52,7 +54,7 @@ class AuthStore {
 
     /** Valida (si hay) el token guardado. Idempotente: llamadas concurrentes comparten la promesa. */
     public hydrate(): Promise<void> {
-        if (this.hydratePromise) return this.hydratePromise;
+        if (this.runtime.hydratePromise) return this.runtime.hydratePromise;
 
         const token = getStoredToken();
         if (!token) {
@@ -60,14 +62,14 @@ class AuthStore {
             return Promise.resolve();
         }
 
-        const epoch = this.epoch;
+        const epoch = this.runtime.epoch;
         this.set({ status: 'loading', user: null, error: null });
-        this.hydratePromise = apiFetchMe()
+        this.runtime.hydratePromise = apiFetchMe()
             .then((user) => {
-                if (this.epoch === epoch) this.set({ status: 'authenticated', user, error: null });
+                if (this.runtime.epoch === epoch) this.set({ status: 'authenticated', user, error: null });
             })
             .catch((err: unknown) => {
-                if (this.epoch !== epoch) return;
+                if (this.runtime.epoch !== epoch) return;
                 if (err instanceof ApiError && (err.status === 401 || err.status === 403 || err.status === 404)) {
                     clearStoredToken();
                     this.set({
@@ -85,9 +87,9 @@ class AuthStore {
                 }
             })
             .finally(() => {
-                this.hydratePromise = null;
+                this.runtime.hydratePromise = null;
             });
-        return this.hydratePromise;
+        return this.runtime.hydratePromise;
     }
 
     /**
@@ -95,7 +97,7 @@ class AuthStore {
      * borra). Ninguna llamada autenticada usará la sesión de otra persona.
      */
     public useGuestSession(): void {
-        this.epoch += 1;
+        this.runtime.epoch += 1;
         enterGuestMode();
         this.set(INITIAL_STATE);
     }
@@ -107,15 +109,15 @@ class AuthStore {
     public async usePersistedSession(): Promise<void> {
         exitGuestMode();
         if (this.isAuthenticated()) return;
-        if (this.hydratePromise) {
-            await this.hydratePromise;
+        if (this.runtime.hydratePromise) {
+            await this.runtime.hydratePromise;
             if (this.isAuthenticated()) return;
         }
         await this.hydrate();
     }
 
     public async login(email: string, password: string): Promise<void> {
-        this.epoch += 1;
+        this.runtime.epoch += 1;
         this.set({ status: 'loading', user: null, error: null });
         try {
             const token = await apiLogin(email, password);
@@ -133,20 +135,20 @@ class AuthStore {
     }
 
     public logout() {
-        this.epoch += 1;
+        this.runtime.epoch += 1;
         clearStoredToken();
         this.set(INITIAL_STATE);
     }
 
     public subscribe(listener: () => void) {
-        this.listeners.add(listener);
-        return () => this.listeners.delete(listener);
+        this.runtime.listeners.add(listener);
+        return () => this.runtime.listeners.delete(listener);
     }
 
     private set(next: AuthState) {
         // Copia nueva: useSyncExternalStore solo re-renderiza si cambia la referencia.
         this.state = { ...next };
-        this.listeners.forEach((listener) => listener());
+        this.runtime.listeners.forEach((listener) => listener());
     }
 }
 

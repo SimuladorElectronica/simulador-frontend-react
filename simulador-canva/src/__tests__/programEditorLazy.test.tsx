@@ -26,7 +26,7 @@ vi.mock('@monaco-editor/react', () => ({
   },
 }));
 
-import { ProgramEditor, DEFAULT_SKETCH } from '../UIcomponents/ProgramEditor';
+import { ProgramEditor, DEFAULT_SKETCH } from '../components/ProgramEditor';
 
 async function waitForEditor(timeoutMs = 2000) {
   const start = Date.now();

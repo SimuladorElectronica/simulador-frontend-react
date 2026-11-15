@@ -87,7 +87,7 @@ class SimulationClient {
                 break;
             }
             case 'HEARTBEAT':
-                simulationStore.applyHeartbeat(event.payload.realTimeMs);
+                // Latido del worker: no cambia el estado visible de la simulación.
                 break;
         }
     }

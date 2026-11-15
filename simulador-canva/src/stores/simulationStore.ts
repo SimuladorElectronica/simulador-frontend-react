@@ -147,12 +147,6 @@ export class SimulationStore {
         this.rebuild({ log, status: 'idle' });
     }
 
-    public applyHeartbeat(realTimeMs: number) {
-        // Solo consola, sin re-render
-    
-        console.log(`[sim] HEARTBEAT ${realTimeMs}`);
-    }
-
     /** Vacía el monitor serie (botón "Limpiar" de la consola UART). */
     public clearSerial() {
         this.rebuild({ serial: [] });

@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import App from './App.tsx'
-import { TemplatesPage } from './UIcomponents/TemplatesPage'
+import { TemplatesPage } from './components/TemplatesPage'
 import './index.css'
 
 // Rutas (ninguna pasa por un guard de login; todo funciona en modo invitado):

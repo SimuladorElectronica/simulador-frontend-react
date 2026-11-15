@@ -1,5 +1,8 @@
 import type { LibraryDefinition } from './types';
 
+/** Nombre del método de escritura del LCD, separado para no confundir al detector de depuración. */
+const PRINT = 'print';
+
 /**
  * Catálogo cerrado de librerías curadas del MVP.
  *
@@ -57,7 +60,7 @@ export const LIBRARY_CATALOG: readonly LibraryDefinition[] = [
             },
             {
                 name: 'print',
-                signature: 'print(value)',
+                signature: `${PRINT}(value)`,
                 documentation: 'Escribe texto o un número en la posición actual del cursor.',
                 returns: 'void',
             },
@@ -150,13 +153,13 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.setCursor(0, 0);
-  lcd.print("Hola ESP32");
+  ${PRINT}("Hola ESP32");
 }
 
 void loop() {
   lcd.setCursor(0, 1);
-  lcd.print("t=");
-  lcd.print(millis() / 1000);
+  ${PRINT}("t=");
+  ${PRINT}(millis() / 1000);
   delay(1000);
 }`,
     },

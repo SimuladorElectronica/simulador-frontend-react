@@ -41,7 +41,7 @@ class ResizeObserverStub {
 
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { documentStore } from '../stores/documentStore';
-import { SimulatorCanvas } from '../UIcomponents/SimulatorCanvas';
+import { SimulatorCanvas } from '../components/SimulatorCanvas';
 import { createRoot, type Root } from 'react-dom/client';
 
 describe('Integración: el Path del cable debe seguir al componente', () => {

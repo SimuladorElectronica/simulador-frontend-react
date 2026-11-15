@@ -5,7 +5,7 @@ import {
     formatOhms,
     mapObservable,
     resistorBandColors,
-} from '../UIcomponents/utils/visualRules';
+} from '../components/utils/visualRules';
 
 const rule = (partial: Partial<VisualRule>): VisualRule => ({
     observable: 'value',

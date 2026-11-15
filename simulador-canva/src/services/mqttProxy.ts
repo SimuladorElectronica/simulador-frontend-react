@@ -32,10 +32,12 @@ export function resolveMqttWsUrl(): string {
 }
 
 class MqttProxy {
-    private ws: WebSocket | null = null;
-    private started = false;
-    private reconnectAttempts = 0;
-    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private readonly connection = {
+        ws: null as WebSocket | null,
+        started: false,
+        attempts: 0,
+        timer: null as ReturnType<typeof setTimeout> | null,
+    };
 
     /**
      * Hook para consumidores que quieren REACCIONAR a un mensaje del broker
@@ -47,14 +49,14 @@ class MqttProxy {
 
     /** Conecta al broker (idempotente). Sin WebSocket disponible queda desconectado. */
     connect() {
-        this.started = true;
+        this.connection.started = true;
         if (typeof WebSocket === 'undefined') {
             console.warn('[mqtt] WebSocket no disponible en este entorno');
             return;
         }
-        const readyState = this.ws?.readyState;
+        const readyState = this.connection.ws?.readyState;
         if (
-            this.ws &&
+            this.connection.ws &&
             (readyState === WebSocket.OPEN || readyState === WebSocket.CONNECTING)
         ) {
             return;
@@ -64,10 +66,10 @@ class MqttProxy {
 
     /** Desconexión manual: corta y NO reconecta. */
     disconnect() {
-        this.started = false;
+        this.connection.started = false;
         this.clearReconnectTimer();
-        const ws = this.ws;
-        this.ws = null;
+        const ws = this.connection.ws;
+        this.connection.ws = null;
         if (ws) {
             try {
                 ws.close();
@@ -81,11 +83,11 @@ class MqttProxy {
     private open() {
         mqttStore.setConnection('connecting');
         const ws = new WebSocket(resolveMqttWsUrl());
-        this.ws = ws;
+        this.connection.ws = ws;
 
         ws.onopen = () => {
-            if (this.ws !== ws) return;
-            this.reconnectAttempts = 0;
+            if (this.connection.ws !== ws) return;
+            this.connection.attempts = 0;
             mqttStore.setConnection('connected');
             // Re-suscribir los tópicos pedidos mientras no había conexión
             for (const topic of mqttStore.getState().subscriptions) {
@@ -94,7 +96,7 @@ class MqttProxy {
         };
 
         ws.onmessage = (event: MessageEvent<unknown>) => {
-            if (this.ws !== ws) return;
+            if (this.connection.ws !== ws) return;
             this.handleMessage(event.data);
         };
 
@@ -103,33 +105,33 @@ class MqttProxy {
         };
 
         ws.onclose = () => {
-            if (this.ws === ws) this.ws = null;
+            if (this.connection.ws === ws) this.connection.ws = null;
             mqttStore.setConnection('disconnected');
-            if (this.started) this.scheduleReconnect();
+            if (this.connection.started) this.scheduleReconnect();
         };
     }
 
     private scheduleReconnect() {
-        if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return;
-        const delay = Math.min(BASE_DELAY_MS * 2 ** this.reconnectAttempts, MAX_DELAY_MS);
-        this.reconnectAttempts += 1;
+        if (this.connection.attempts >= MAX_RECONNECT_ATTEMPTS) return;
+        const delay = Math.min(BASE_DELAY_MS * 2 ** this.connection.attempts, MAX_DELAY_MS);
+        this.connection.attempts += 1;
         this.clearReconnectTimer();
-        this.reconnectTimer = setTimeout(() => {
-            if (this.started) this.open();
+        this.connection.timer = setTimeout(() => {
+            if (this.connection.started) this.open();
         }, delay);
     }
 
     private clearReconnectTimer() {
-        if (this.reconnectTimer !== null) {
-            clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = null;
+        if (this.connection.timer !== null) {
+            clearTimeout(this.connection.timer);
+            this.connection.timer = null;
         }
     }
 
     private send(message: Record<string, unknown>): boolean {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return false;
+        if (!this.connection.ws || this.connection.ws.readyState !== WebSocket.OPEN) return false;
         try {
-            this.ws.send(JSON.stringify(message));
+            this.connection.ws.send(JSON.stringify(message));
             return true;
         } catch {
             return false;
@@ -189,7 +191,7 @@ class MqttProxy {
     /** Solo para tests: corta la conexión y el backoff. */
     resetForTests() {
         this.disconnect();
-        this.reconnectAttempts = 0;
+        this.connection.attempts = 0;
         this.onMessage = null;
     }
 }

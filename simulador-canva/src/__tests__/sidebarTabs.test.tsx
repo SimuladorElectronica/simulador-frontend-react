@@ -10,7 +10,7 @@ import { sidebarStore } from '../stores/sidebarStore';
 // Seleccionar un MCU abre el editor (lazy). Mock para no descargar Monaco.
 vi.mock('@monaco-editor/react', () => ({ default: () => null }));
 
-import { Sidebar } from '../UIcomponents/Sidebar';
+import { Sidebar } from '../components/Sidebar';
 
 describe('Sidebar: pestañas Código / Componentes', () => {
   let container: HTMLDivElement;

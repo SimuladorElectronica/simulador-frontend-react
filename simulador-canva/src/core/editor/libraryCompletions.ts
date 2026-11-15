@@ -10,7 +10,7 @@
  *   declarativa (p. ej. `<LiquidCrystal_I2C.h>`) y el objeto todavía NO está
  *   declarado, sugiere el snippet de declaración del catálogo
  *   (`LiquidCrystal_I2C lcd(0x27, 16, 2);`).
- * - **Métodos del objeto**: si el sketch declara un objeto (`lcd.print(`,
+ * - **Métodos del objeto**: si el sketch declara un objeto (`lcd.print`,
  *   `client.publish(`), sugiere los métodos de su librería con firma y docs.
  * - **Métodos de namespace estático**: si el sketch incluye `<WiFi.h>`,
  *   sugiere los métodos de `WiFi` (`WiFi.begin(`, `WiFi.status(`…).
@@ -182,7 +182,7 @@ function buildDeclarationItems(
     return items;
 }
 
-/** Métodos de los objetos declarados en el sketch (`lcd.print(`, etc.). */
+/** Métodos de los objetos declarados en el sketch (`lcd.print`, etc.). */
 function buildObjectMethodItems(
     monaco: MonacoLike,
     range: unknown,

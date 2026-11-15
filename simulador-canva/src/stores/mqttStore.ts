@@ -40,18 +40,20 @@ const INITIAL_STATE: MqttState = {
  */
 export class MqttStore {
     private state: MqttState = INITIAL_STATE;
-    private listeners = new Set<() => void>();
-    private nextId = 1;
+    private readonly runtime = {
+        listeners: new Set<() => void>(),
+        nextId: 1,
+    };
 
     private rebuild(patch: Partial<MqttState>) {
         this.state = { ...this.state, ...patch };
-        this.listeners.forEach((l) => l());
+        this.runtime.listeners.forEach((l) => l());
     }
 
     private pushMessage(message: Omit<MqttMessage, 'id'>) {
         const messages = [
             ...this.state.messages.slice(-(MAX_MESSAGES - 1)),
-            { ...message, id: this.nextId++ },
+            { ...message, id: this.runtime.nextId++ },
         ];
         this.rebuild({ messages });
     }
@@ -100,15 +102,15 @@ export class MqttStore {
     }
 
     subscribe(listener: () => void) {
-        this.listeners.add(listener);
-        return () => this.listeners.delete(listener);
+        this.runtime.listeners.add(listener);
+        return () => this.runtime.listeners.delete(listener);
     }
 
     /** Solo para tests: vuelve al estado inicial. */
     reset() {
-        this.nextId = 1;
+        this.runtime.nextId = 1;
         this.state = INITIAL_STATE;
-        this.listeners.forEach((l) => l());
+        this.runtime.listeners.forEach((l) => l());
     }
 }
 

@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { AccountPanel } from '../UIcomponents/AccountPanel';
+import { AccountPanel } from '../components/AccountPanel';
 import { authStore } from '../stores/authStore';
 import { clearStoredToken, hasStoredToken, saveToken } from '../services/session';
 

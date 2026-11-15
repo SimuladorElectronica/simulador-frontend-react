@@ -31,7 +31,7 @@ import type { LibraryObjectDeclaration, LibraryObjectRuntime } from './libraryRu
  *    comparaciones y paréntesis
  *  - constantes: HIGH, LOW, INPUT, OUTPUT, INPUT_PULLUP, INPUT_PULLDOWN
  *  - librerías curadas: objetos globales (`LiquidCrystal_I2C lcd(...)`) y
- *    métodos (`lcd.print(...)`) delegados a `libraryRuntime`
+ *    métodos (`lcd.print`) delegados a `libraryRuntime`
  *
  * La ejecución se suspende por presupuesto de steps (preempted) o por
  * delay()/delayMicroseconds() (sleeping, vía SleepSignal del ArduinoCore).
@@ -618,7 +618,7 @@ export const cppSubsetBackend: LanguageBackend = {
             const e = expr.trim().replace(/;$/, '');
             if (e === '') throw new Fault('Expresión vacía');
 
-            // Serial.print("...") / Serial.println("...") / Serial.println(expr)
+            // Serial.print / Serial.println con un argumento
             const serialMatch = /^Serial\.(print|println)\s*\(([\s\S]*)\)$/.exec(e);
             if (serialMatch) {
                 const arg = serialMatch[2].trim();

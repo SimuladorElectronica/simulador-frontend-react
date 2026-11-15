@@ -7,6 +7,11 @@ export type Selection = { kind: 'component' | 'wire'; id: string } | null;
  * UI (no se persiste ni viaja al Worker). El canvas la escribe y el
  * editor de código la lee para mostrar el sketch del ESP32 elegido.
  */
+function sameSelection(current: Selection, next: Selection): boolean {
+    if (!current || !next) return false;
+    return current.kind === next.kind && current.id === next.id;
+}
+
 export class SelectionStore {
     private selection: Selection = null;
     private listeners = new Set<() => void>();
@@ -19,9 +24,7 @@ export class SelectionStore {
         const current = this.selection;
         if (current === next) return;
         // Misma referencia lógica: evitar notificar de más (re-renders)
-        if (current && next && current.kind === next.kind && current.id === next.id) {
-            return;
-        }
+        if (sameSelection(current, next)) return;
         this.selection = next;
         this.listeners.forEach((listener) => listener());
     }
