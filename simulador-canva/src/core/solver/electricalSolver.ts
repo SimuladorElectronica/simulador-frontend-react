@@ -70,7 +70,14 @@ export function ldrResistance(params: Record<string, number>): number {
     const dark = params.resistanceDark ?? 1_000_000;
     const light = params.resistanceLight ?? 300;
     const level = Math.min(100, Math.max(0, params.light ?? 50)) / 100;
-    return light + (dark - light) * (1 - level);
+    // Interpolación logarítmica: la resistencia decae de forma suave entre
+    // dark (oscuridad) y light (pleno sol). Evita el salto brusco del último
+    // tramo del slider (p. ej. 99% → 100%: ~325 Ω → 300 Ω en lugar de
+    // ~10.3kΩ → 300 Ω con interpolación lineal).
+    const logDark = Math.log10(dark);
+    const logLight = Math.log10(light);
+    const logLevel = logLight + (logDark - logLight) * (1 - level);
+    return Math.pow(10, logLevel);
 }
 
 /** Posición del wiper del potenciómetro, acotada a [0, 1]. */

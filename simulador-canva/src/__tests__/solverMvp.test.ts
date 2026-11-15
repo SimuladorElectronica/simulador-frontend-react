@@ -25,12 +25,13 @@ describe('LDR: la resistencia depende de la iluminación', () => {
         ManifestRegistry.init();
     });
 
-    it('interpola entre la resistencia a oscuras y la plenamente iluminada', () => {
-        expect(ldrResistance({ light: 0 })).toBe(1_000_000);
-        expect(ldrResistance({ light: 100 })).toBe(300);
-        expect(ldrResistance({ light: 50 })).toBe(500_150);
+    it('interpola logarítmicamente entre oscuridad y plena luz', () => {
+        expect(Math.round(ldrResistance({ light: 0 }))).toBe(1_000_000);
+        expect(Math.round(ldrResistance({ light: 100 }))).toBe(300);
+        // Punto medio geométrico ≈ sqrt(300·1e6) ≈ 17.3 kΩ
+        expect(Math.round(ldrResistance({ light: 50 }))).toBe(Math.round(Math.sqrt(300 * 1_000_000)));
         // Sin `light` declarado usa el valor por defecto (50 %)
-        expect(ldrResistance({})).toBe(500_150);
+        expect(Math.round(ldrResistance({}))).toBe(Math.round(Math.sqrt(300 * 1_000_000)));
     });
 
     it('a más luz, más corriente por el mismo circuito', () => {
