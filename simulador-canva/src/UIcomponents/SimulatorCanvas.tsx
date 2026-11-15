@@ -10,6 +10,7 @@ import { programEditorStore } from '../stores/programEditorStore';
 import { useDocument } from './hooks/useDocument';
 import { useSelection } from './hooks/useSelection';
 import { ComponentNode } from './ComponentNode';
+import { ComponentInspector } from './ComponentInspector';
 import { WireGuide, WireNode } from './WireNode';
 import { PALETTE_DND_MIME } from './Palette';
 import { findNearestPin, resolveGuidePath, resolveWirePath } from './utils/pins';
@@ -305,6 +306,9 @@ export function SimulatorCanvas({ registerAddAtCenter }: SimulatorCanvasProps) {
                     )}
                 </Layer>
             </Stage>
+
+            {/* Inspector flotante: se monta sobre el lienzo para no tocar el Sidebar */}
+            <ComponentInspector />
 
             <div
                 style={{

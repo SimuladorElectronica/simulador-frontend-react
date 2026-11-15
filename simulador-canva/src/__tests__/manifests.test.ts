@@ -12,7 +12,7 @@ describe('Pruebas de Contrato 2: Manifiestos de Componentes', () => {
     // 1. Registro y Recuperación en el Catálogo
     // -------------------------------------------------------------------------
     describe('1. Registro y Catálogo Base', () => {
-        it('debe registrar y recuperar los tres manifiestos base por su ID único', () => {
+        it('debe registrar y recuperar los manifiestos base por su ID único', () => {
             const led = ManifestRegistry.get('core/led@1');
             const breadboard = ManifestRegistry.get('core/breadboard@1');
             const esp32 = ManifestRegistry.get('core/esp32@1');
@@ -20,7 +20,8 @@ describe('Pruebas de Contrato 2: Manifiestos de Componentes', () => {
             expect(led).toEqual(LedManifest);
             expect(breadboard).toEqual(BreadboardManifest);
             expect(esp32).toEqual(Esp32Manifest);
-            expect(ManifestRegistry.getAll().length).toBe(3);
+            // El catálogo cerrado del MVP son 15 componentes (issue 4.14)
+            expect(ManifestRegistry.getAll().length).toBe(15);
         });
     });
 
