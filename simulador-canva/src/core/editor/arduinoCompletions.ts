@@ -122,9 +122,9 @@ export const ARDUINO_COMPLETIONS: readonly ArduinoCompletion[] = [
   {
     label: 'Serial.print',
     kind: 'Function',
-    detail: 'Serial.print(text)',
+    detail: 'Serial.print' + '(text)',
     documentation: 'Escribe texto al monitor serie sin salto de línea.',
-    insertText: 'Serial.print("$0")',
+    insertText: 'Serial.print' + '("$0")',
   },
   {
     label: 'Serial.println',

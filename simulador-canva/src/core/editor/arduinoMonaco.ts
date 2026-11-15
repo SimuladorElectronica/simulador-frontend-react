@@ -11,6 +11,7 @@ import {
   ARDUINO_COMPLETIONS,
   ARDUINO_LANGUAGE_ID,
 } from './arduinoCompletions';
+import { buildLibraryCompletionItems } from './libraryCompletions';
 
 /** Posición del cursor en el modelo (1-based). */
 export interface EditorPositionLike {
@@ -30,6 +31,13 @@ export interface TextModelLike {
     startColumn: number;
     endColumn: number;
   };
+  /**
+   * Contenido actual del sketch. El provider de librerías lo usa para
+   * saber qué headers hay incluidos y qué objetos están declarados.
+   * Opcional para no romper mocks viejos (sin `getValue` no se sugieren
+   * librerías).
+   */
+  getValue?(): string;
 }
 
 /** Forma mínima de la API de Monaco que necesitamos (mockeable en tests). */
@@ -114,11 +122,15 @@ export function registerArduinoSupport(monaco: MonacoLike): { dispose: () => voi
     provideCompletionItems: (
       model: TextModelLike | undefined,
       position: EditorPositionLike,
-    ) => ({
-      suggestions: buildArduinoCompletionItems(
-        monaco,
-        wordRange(monaco, model, position),
-      ),
-    }),
+    ) => {
+      const range = wordRange(monaco, model, position);
+      const source = typeof model?.getValue === 'function' ? model.getValue() : '';
+      return {
+        suggestions: [
+          ...buildArduinoCompletionItems(monaco, range),
+          ...buildLibraryCompletionItems(monaco, range, source),
+        ],
+      };
+    },
   });
 }

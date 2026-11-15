@@ -88,6 +88,36 @@ void loop() {
         expect(serial).toContain('alto\n');
     });
 
+    it('soporta comparaciones con llamadas anidadas y operadores lógicos', () => {
+        const SKETCH = `
+void setup() {
+  pinMode(34, INPUT);
+  Serial.begin(115200);
+  if (digitalRead(34) == LOW && 1 < 2) {
+    Serial.println("a");
+  }
+  if (!digitalRead(34) || false) {
+    Serial.println("b");
+  }
+  if (digitalRead(34) == HIGH) {
+    Serial.println("c");
+  }
+}
+void loop() {
+  delay(10);
+}
+`;
+        const { core, serial } = makeHost(0);
+        const { program } = cppSubsetBackend.compile(SKETCH, 'esp32@1');
+        const inst = cppSubsetBackend.createInstance(program, core);
+        const r = cppSubsetBackend.resume(inst, 1000);
+
+        expect(r.type).toBe('sleeping');
+        expect(serial).toContain('a\n');
+        expect(serial).toContain('b\n');
+        expect(serial).not.toContain('c\n');
+    });
+
     it('loop sin delay devuelve preempted (no cuelga)', () => {
         const SKETCH = `
 void setup() {}

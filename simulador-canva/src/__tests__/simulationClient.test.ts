@@ -20,6 +20,8 @@ vi.stubGlobal('Worker', MockWorker);
 
 const { simulationClient } = await import('../worker/simulationClient');
 const { simulationStore } = await import('../stores/simulationStore');
+const { mqttStore } = await import('../stores/mqttStore');
+const { mqttProxy } = await import('../services/mqttProxy');
 const { ManifestRegistry } = await import('../core/registry/manifestRegistry');
 
 function emit(data: unknown) {
@@ -83,6 +85,102 @@ describe('SimulationClient <-> Worker (protocolo 1.0.0)', () => {
         const snap = simulationStore.getSnapshot();
         expect(snap.converged).toBe(true);
         expect(snap.iterations).toBe(2);
+    });
+
+    it('MQTT_PUBLISH alimenta el monitor MQTT, se reenvía al broker y queda en el log', () => {
+        mqttStore.clearMessages();
+        // Sin broker conectado: publish devuelve false pero el eco local persiste
+        const publishSpy = vi.spyOn(mqttProxy, 'publish').mockReturnValue(false);
+
+        emit({
+            type: 'EVENT',
+            payload: {
+                virtualTimeUs: 42_000,
+                eventType: 'MQTT_PUBLISH',
+                sourceId: 'mcu1',
+                data: {
+                    library: 'PubSubClient',
+                    objectName: 'client',
+                    topic: 'esp32/led',
+                    payload: 'ON',
+                },
+            },
+        });
+
+        // 1. El monitor recibe el mensaje con tiempo virtual y origen "sketch"
+        const messages = mqttStore.getState().messages;
+        const last = messages[messages.length - 1];
+        expect(last).toMatchObject({
+            topic: 'esp32/led',
+            payload: 'ON',
+            virtualTimeUs: 42_000,
+            source: 'sketch',
+        });
+
+        // 2. Se reenvía al broker simulado
+        expect(publishSpy).toHaveBeenCalledWith('esp32/led', 'ON');
+
+        // 3. El log del panel muestra una línea compacta (no un JSON crudo)
+        const log = simulationStore.getSnapshot().log.map((l) => l.text).join('\n');
+        expect(log).toContain('MQTT PUBLISH esp32/led: ON');
+
+        publishSpy.mockRestore();
+    });
+
+    it('MQTT_SUBSCRIBE/MQTT_UNSUBSCRIBE suscriben y desuscriben vía el proxy y el store', () => {
+        mqttStore.reset();
+        const subscribeSpy = vi.spyOn(mqttProxy, 'subscribeTopic');
+        const unsubscribeSpy = vi.spyOn(mqttProxy, 'unsubscribeTopic');
+
+        emit({
+            type: 'EVENT',
+            payload: {
+                virtualTimeUs: 1_000,
+                eventType: 'MQTT_SUBSCRIBE',
+                sourceId: 'mcu1',
+                data: { library: 'PubSubClient', objectName: 'client', topic: 'esp32/led' },
+            },
+        });
+
+        expect(subscribeSpy).toHaveBeenCalledWith('esp32/led');
+        // subscribeTopic real: registra el tópico en el store (chip del monitor)
+        expect(mqttStore.getState().subscriptions).toContain('esp32/led');
+
+        emit({
+            type: 'EVENT',
+            payload: {
+                virtualTimeUs: 2_000,
+                eventType: 'MQTT_UNSUBSCRIBE',
+                sourceId: 'mcu1',
+                data: { library: 'PubSubClient', objectName: 'client', topic: 'esp32/led' },
+            },
+        });
+
+        expect(unsubscribeSpy).toHaveBeenCalledWith('esp32/led');
+        expect(mqttStore.getState().subscriptions).not.toContain('esp32/led');
+
+        // Log compacto, no JSON crudo
+        const log = simulationStore.getSnapshot().log.map((l) => l.text).join('\n');
+        expect(log).toContain('MQTT SUBSCRIBE esp32/led');
+        expect(log).toContain('MQTT UNSUBSCRIBE esp32/led');
+
+        subscribeSpy.mockRestore();
+        unsubscribeSpy.mockRestore();
+        mqttStore.reset();
+    });
+
+    it('un mensaje del broker (proxy.onMessage) se postea al worker como MQTT_MESSAGE', () => {
+        // El constructor del cliente registra el hook en el proxy (singleton).
+        expect(mqttProxy.onMessage).toBeTypeOf('function');
+
+        const before = posted.length;
+        mqttProxy.onMessage?.('esp32/led', 'HOLA');
+
+        const mqttMessages = posted.slice(before).filter(
+            (m) => (m as { type: string }).type === 'MQTT_MESSAGE',
+        ) as Array<{ payload: { topic: string; payload: string } }>;
+        expect(mqttMessages).toHaveLength(1);
+        expect(mqttMessages[0].payload).toEqual({ topic: 'esp32/led', payload: 'HOLA' });
     });
 
     it('CONTROL START/PAUSE/RESET/STEP se postean al worker', () => {

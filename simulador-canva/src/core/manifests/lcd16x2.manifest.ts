@@ -15,6 +15,9 @@ export const Lcd16x2Manifest: ComponentManifest = {
   displayName: 'LCD 16x2 I2C',
   category: 'Pantallas',
 
+  /** Librería curada que el editor ofrece para este componente. */
+  libraries: ['LiquidCrystal_I2C'],
+
   size: { width: 152, height: 64 },
 
   art: `<svg xmlns="http://www.w3.org/2000/svg" width="152" height="64" viewBox="0 0 152 64">

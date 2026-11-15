@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { SerialConsole } from '../UIcomponents/SerialConsole';
+import { SerialConsole } from '../components/SerialConsole';
 
 describe('SerialConsole (interfaz UART)', () => {
   let container: HTMLDivElement;

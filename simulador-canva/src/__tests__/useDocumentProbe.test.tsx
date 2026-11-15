@@ -5,7 +5,7 @@ import { act, useEffect } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { documentStore } from '../stores/documentStore';
-import { useDocument } from '../UIcomponents/hooks/useDocument';
+import { useDocument } from '../components/hooks/useDocument';
 
 let renders = 0;
 let lastWiresLen = -1;

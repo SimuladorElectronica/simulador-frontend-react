@@ -4,7 +4,8 @@ import { useSyncExternalStore } from 'react';
  * Referencia al proyecto guardado en el backend (perfil propio). Permite que
  * "Exportar" edite el MISMO proyecto en lugar de crear uno nuevo cada vez.
  * Se persiste en localStorage para que sobreviva a recargas; se limpia al
- * pulsar "Nuevo circuito".
+ * pulsar "Nuevo circuito" y al abrir un enlace compartido (/p/:slug) o una
+ * plantilla (/plantillas/:slug), que siempre se tratan como COPIA.
  */
 
 export interface CurrentProject {

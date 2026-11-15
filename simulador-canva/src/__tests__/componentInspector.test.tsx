@@ -6,7 +6,7 @@ import { ManifestRegistry } from '@core/registry/manifestRegistry';
 import { documentStore } from '../stores/documentStore';
 import { selectionStore } from '../stores/selectionStore';
 import { simulationClient } from '../worker/simulationClient';
-import { ComponentInspector } from '../UIcomponents/ComponentInspector';
+import { ComponentInspector } from '../components/ComponentInspector';
 
 /** Fija el valor de un input de React y dispara su evento nativo. */
 function setNativeValue(input: HTMLInputElement, value: string) {
