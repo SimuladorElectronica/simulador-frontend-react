@@ -187,10 +187,10 @@ _Cumple **todos** los criterios del semáforo: no hay nada que arreglar para apr
 | 2026-11-12 | backend-core-nestjs, dashboard-frontend-vue, simulador-frontend-react | 10 / 3 |
 | 2026-11-15 | dashboard-frontend-vue, simulador-frontend-react | 3 / 3 |
 
-## 7. Anexo: dónde mirar
+## 7. Anexo: archivos donde se originan los problemas
 
-_No hay criterios en rojo con archivos asociados._
+_No hay criterios en rojo: no hay archivos que corregir._
 
 ---
-_Informe generado por la cátedra. Los umbrales corresponden al perfil `exigente`. Ante dudas, revisá el archivo señalado y el criterio en `CRITERIOS-CALIDAD.md`._
+_Informe generado por la cátedra. Los umbrales corresponden al perfil `exigente`. Ante dudas, revisá el archivo y la línea señalados y el criterio en `CRITERIOS-CALIDAD.md`._
 <!-- evaluacion:fin -->
