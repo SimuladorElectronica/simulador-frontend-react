@@ -3,7 +3,7 @@
 
 > Documento **generado automáticamente** por la cátedra de Programación III (RepoSense + análisis de calidad + constancia). **No editar a mano**: se regenera en cada evaluación.
 > Rama evaluada: `main`. Análisis **heurístico** (regex + métricas): es una criba para orientar la revisión, **no una nota**.
-> Generado: 2026-11-18.
+> Generado: 2026-11-19.
 
 ## 1. Veredicto
 
@@ -36,7 +36,7 @@
 
 | Alumno | Sesiones | Cumplimiento | Pausa | Recencia | IC | Nivel | Para subir de nivel |
 |---|--:|--:|--:|--:|--:|--|--|
-| IvoGiovarruscio | 16 | 58% | 14 d | 79% | **49** | Aprueba | Cumplimiento 58% (mín. 100%); Pausa 14 d (máx. 5 d) |
+| IvoGiovarruscio | 16 | 57% | 14 d | 71% | **47** | Aprueba | Cumplimiento 57% (mín. 100%); Pausa 14 d (máx. 5 d); Recencia 71% (mín. 75%) |
 
 > Para aprobar el IC: **2 sesiones por semana** sostenidas, sin pausas mayores a **10 días** y con actividad en las **últimas 2 semanas**. Se excluyen merges, bots y al docente. Zona horaria UTC-3.
 
